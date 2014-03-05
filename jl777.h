@@ -1,4 +1,3 @@
-
 //  Created by jl777
 //  MIT License
 //
@@ -123,5 +122,9 @@ struct active_NXTacct
     char NXTaddr[MAX_NXTADDR_LEN],withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_COINTXID_LEN];
     struct gateway_state gsm[NUM_GATEWAYS];
 };
+
+static char *Gateway_NXTaddrs[NUM_GATEWAYS] = { NXTACCTA, NXTACCTB, NXTACCTC };
+static char *Gateway_Pubkeys[NUM_GATEWAYS] = { PUBLICA, PUBLICB, PUBLICC };
+static char *Server_names[NUM_GATEWAYS] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC };
 
 #endif

@@ -1,3 +1,4 @@
+
 //  Created by jl777
 //  MIT License
 //
@@ -7,6 +8,7 @@
 #define gateway_NXTassets_h
 
 struct strings ASSETNAMES,ASSETCHANGES; 
+struct active_NXTacct **NXTaccts; int Numactive,Maxactive;
 
 int validate_nxtaddr(char *nxtaddr)
 {
@@ -123,6 +125,115 @@ void update_asset_balances(char *change_txid,char *asset,char *recipientstr,char
             }
         }
     }
+}
+
+int process_NXTtransaction(char *nxt_txid)
+{
+    static int timestamp = 0;
+    struct gateway_AM AM;
+    struct active_NXTacct *active;
+    char cmd[4096],*jsonstr,*retstr,*cmpstr;
+    int gatewayid,n,tmp,flag = 0;
+    char tmpstr[10000];
+    int64_t mult,quantity;
+    sprintf(cmd,"%s=getTransaction&transaction=%s",NXTSERVER,nxt_txid);
+    //printf("CMD.(%s)\n",cmd);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("PROCESS.(%s)\n",jsonstr);
+        strcpy(tmpstr,jsonstr);
+        retstr = parse_NXTresults(0,"message","",results_processor,jsonstr,strlen(jsonstr));
+        //printf("MESSAGE[%s]\n",retstr);
+        tmp = atoi(Timestamp);
+        if ( tmp > timestamp )
+            timestamp = tmp;
+        if ( retstr != 0 )
+        {
+            n = (int)strlen(Message) / 2;
+            memset(&AM,0,sizeof(AM));
+            decode_hex((void *)&AM,n,Message);
+            //for (j=0; j<n; j++)
+            //    printf("%02x",((char *)&AM)[j]&0xff);
+            //printf("timestamp.%s %d\n",Timestamp,timestamp);
+            if ( is_gateway_AM(&gatewayid,&AM,Sender,Recipient) != 0 )
+            {
+                // if ( atoi(Confirmations) < MIN_NXTCONFIRMS ) need to make a queue to check NXT confirms
+                //    queue_AM_txid(nxt_txid);
+                //else
+                {
+                    flag++;
+                    update_gateway_states(timestamp,&AM);
+                }
+            }
+            free(retstr);
+        }
+        if ( flag == 0 )
+        {
+            mult = 0;
+            quantity = atoi(Quantity);
+            if ( strcmp(Asset,COINASSET) == 0 )
+                mult = SATOSHIDEN;
+            else if ( strcmp(Asset,milliCOINASSET) == 0 )
+                mult = (SATOSHIDEN / 1000);
+            if ( quantity > 0 )
+            {
+                //printf("%d descr.(%s) %s -> %s, QTY %.8f\n",strcmp(Recipient,GENESISACCT),Description,Sender,Recipient,(double)(quantity)/SATOSHIDEN);
+                if ( strcmp(Recipient,GENESISACCT) == 0 )
+                {
+                    if ( Description[0] != 0 )
+                    {
+                        if ( strcmp(COINNAME,Name) == 0 )
+                            strcpy(Asset,COINASSET);
+                        else if ( strcmp(milliCOINNAME,Name) == 0 )
+                            strcpy(Asset,milliCOINASSET);
+                        else Asset[0] = 0;
+                        if ( Asset[0] != 0 )
+                            update_asset_balances(nxt_txid,Asset,Sender,Recipient,quantity * SATOSHIDEN);
+                    }
+                }
+                else if ( mult > 0 )
+                    update_asset_balances(nxt_txid,Asset,Recipient,Sender,quantity * SATOSHIDEN);
+                //printf("ASSET.(%s)\n",tmpstr);
+#ifdef IS_GATEWAY
+                for (gatewayid=0; gatewayid<=NUM_GATEWAYS; gatewayid++)
+                {
+                    cmpstr = (gatewayid < NUM_GATEWAYS) ? Gateway_NXTaddrs[gatewayid] : NXTISSUERACCT;
+                    if ( strcmp(cmpstr,Recipient) == 0 )
+                    {
+                        printf(">>>>> ASSET XFER getTransaction.%s %s\n",nxt_txid,tmpstr);
+                        if ( (active= get_active_NXTacct(Sender)) != 0 )
+                            queue_asset_redemption(timestamp,gatewayid % NUM_GATEWAYS,active,Recipient,nxt_txid,quantity * mult,Asset);
+                        else printf("NXTaddr.%s without account sent quantity.%s\n",Sender,Quantity);
+                    }
+                }
+#endif
+            }
+        }
+        free(jsonstr);
+    }
+    return(timestamp);
+}
+
+int get_blocks_to_process(int timestamp)
+{
+    int i,tmp,AMcount = 0;
+    Numinlist = 0;
+    issue_getAccountTransactionIds(addto_NXTlist,NXTISSUERACCT,timestamp);
+    for (i=0; i<Numinlist; i++)
+    {
+        //printf("(%d %s) ",i,List[i]);
+        if ( (tmp= process_NXTtransaction(List[i])) != 0 )
+        {
+            if ( tmp > timestamp )
+                timestamp = tmp;
+            AMcount++;
+        }
+        free(List[i]);
+        List[i] = 0;
+    }
+    Numinlist = 0;
+    return(timestamp);
 }
 
 #endif

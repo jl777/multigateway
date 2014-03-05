@@ -1,4 +1,3 @@
-
 //  Created by jl777
 //  MIT License
 //
@@ -164,5 +163,7 @@ static int is_gateway_AM(int *gatewayidp,struct gateway_AM *ap,char *sender,char
     return(0);
 }
 
+extern void update_gateway_states(int timestamp,struct gateway_AM *ap);
+extern void queue_asset_redemption(int timestamp,int gatewayid,struct active_NXTacct *active,char *recipient,char *redeem_txid,int64_t redeemtoshis,char *assetid);
 
 #endif

@@ -6,79 +6,9 @@
 #ifndef NXTAPI_NXTAPI_h
 #define NXTAPI_NXTAPI_h
 
+struct active_NXTacct **NXTaccts; int Numactive,Maxactive;
+struct strings ASSETNAMES,ASSETCHANGES; 
 
-int validate_nxtaddr(char *nxtaddr)
-{
-    // make sure it has publickey
-    int n = (int)strlen(nxtaddr);
-    while ( n > 10 && (nxtaddr[n-1] == '\n' || nxtaddr[n-1] == '\r') )
-        n--;
-    if ( n < 8 )
-        return(-1);
-    return(0);
-}
-
-int validate_coinaddr(char *coinaddr)
-{
-    // make sure it has valid checksum
-    int n = (int)strlen(coinaddr);
-    while ( n > 10 && (coinaddr[n-1] == '\n' || coinaddr[n-1] == '\r') )
-        n--;
-    return(0);
-}
-
-struct active_NXTacct *search_NXTaccts(char *nxtaddr)
-{
-    int i;
-    for (i=0; i<Numactive; i++)
-    {
-        if ( strcmp(nxtaddr,NXTaccts[i]->NXTaddr) == 0 )
-            return(NXTaccts[i]);
-    }
-    return(0);
-}
-
-int add_NXTacct(char *nxtaddr)
-{
-    if ( Numactive >= Maxactive )
-    {
-        Maxactive += 100;
-        NXTaccts = realloc(NXTaccts,sizeof(*NXTaccts) * Maxactive);
-    }
-    printf("ADD NXTacct.%d (%s)\n",Numactive,nxtaddr);
-    NXTaccts[Numactive] = malloc(sizeof(*NXTaccts[Numactive]));
-    memset(NXTaccts[Numactive],0,sizeof(*NXTaccts[Numactive]));
-    strcpy(NXTaccts[Numactive]->NXTaddr,strip_tohexcodes(nxtaddr));
-    Numactive++;
-    return(Numactive);
-}
-
-struct active_NXTacct *get_active_NXTacct(char *nxtaddr)
-{
-    int i;
-    struct active_NXTacct *active;
-    if ( strlen(nxtaddr) < 5 )
-        return(0);
-    for (i=0; nxtaddr[i]; i++)
-        if ( nxtaddr[i] < '0' || nxtaddr[i] > '9' )
-            return(0);
-    if ( validate_nxtaddr(nxtaddr) == 0 )
-    {
-        if ( (active= search_NXTaccts(nxtaddr)) == 0 )
-            add_NXTacct(nxtaddr);
-        if ( (active= search_NXTaccts(nxtaddr)) == 0 )
-        {
-            printf("FATAL ERROR: couldnt add NXTaddr!\n");
-            while ( 1 ) sleep(1);
-        }
-        return(active);
-    }
-    else
-    {
-        printf("illegal nxt acct (%s) ignored\n",nxtaddr);
-        return(0);
-    }
-}
 
 char *issue_getAccountBlockIds(char *acctid,int timestamp)
 {

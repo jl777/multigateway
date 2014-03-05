@@ -33,8 +33,8 @@ void update_gateway_states(int timestamp,struct gateway_AM *am)
 {
     if ( am->funcid == BIND_DEPOSIT_ADDRESS )
     {
-        printf("deposit address for gateway.%d %s is %s\n",gatewayid,am->NXTaddr,am->coinaddr);
-        strcpy(DEPOSITADDR,ap->coinaddr);
+        printf("deposit address for gateway.%d %s is %s\n",am->gatewayid,am->NXTaddr,am->coinaddr);
+        strcpy(DEPOSITADDR,am->coinaddr);
     }
 }
 

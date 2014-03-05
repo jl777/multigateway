@@ -58,8 +58,8 @@
 #define NXTACCTB "182322251788771430841"
 #define NXTACCTC "1823222517887714308412"
 //#define NXTSERVER "https://holms.cloudapp.net:6875/nxt?requestType"
-//#define NXTSERVER "http://tn01.nxtsolaris.info:6876/nxt?requestType"
-#define NXTSERVER "http://209.126.73.160:6876/nxt?requestType"
+#define NXTSERVER "http://tn01.nxtsolaris.info:6876/nxt?requestType"
+//#define NXTSERVER "http://209.126.73.160:6876/nxt?requestType"
 #endif
 
 

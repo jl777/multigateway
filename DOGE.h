@@ -16,10 +16,7 @@
 
 #define DAEMON "dogecoind"  // for most bitcoin forks, changing TXFEE and gateway specific defines should be enough
 #define TXFEE 1.0000           // don't forget to match txfee with coin
-#define MAX_VOUTS 8       
 #define MIN_CONFIRMS 3
-#define DEPOSIT_FREQUENCY 3
-#define POLL_SECONDS 60
 #define WALLETBACKUP "wallet.DOGE"
 
 // defines
@@ -38,24 +35,6 @@
 #define SERVER_NAMEC "209.126.73.158"
 #define DOGEADDRC "DUJxdKGYrThiuWMyuw3oGkfVnydAM5hG46"
 #define PUBLICC "02daa52056d79777afa25001b957d9e4cc2eba1e3639bd390681db149f1cd174fb"
-
-#ifdef MAINNET
-#define NXTISSUERACCT "10154506025773104943"
-#define NXTACCTA "10154506025773104943"
-#define NXTACCTB "10154506025773104943"
-#define NXTACCTC "10154506025773104943"
-//#define NXTSERVER "http://localhost:7876/nxt?requestType"
-#else
-#define NXTISSUERACCT "18232225178877143084"
-#define NXTACCTA "18232225178877143084"
-#define NXTACCTB "182322251788771430841"
-#define NXTACCTC "1823222517887714308412"
-//#define NXTSERVER "https://holms.cloudapp.net:6875/nxt?requestType"
-#endif
-
-#ifndef GATEWAYID
-#define GATEWAYID 1
-#endif
 
 
 #endif

@@ -27,7 +27,7 @@
 #define POLL_SECONDS 10
 #define WALLETBACKUP "wallet.DOGE"
 #define COINASSET "7761388364129412234"
-#define milliCOINASSET "443314250944172189"
+#define milliCOINASSET "6572437125760810791"
 
 // defines
 #define MULTISIGADDR "9rufqRXAekAx4gnGuKf5SL8YzViMfryLMY"    // this and redeem are deterministic based on signers
@@ -57,7 +57,9 @@
 #define NXTACCTA "18232225178877143084"
 #define NXTACCTB "182322251788771430841"
 #define NXTACCTC "1823222517887714308412"
-#define NXTSERVER "https://holms.cloudapp.net:6875/nxt?requestType"
+//#define NXTSERVER "https://holms.cloudapp.net:6875/nxt?requestType"
+//#define NXTSERVER "http://tn01.nxtsolaris.info:6876/nxt?requestType"
+#define NXTSERVER "http://209.126.73.160:6876/nxt?requestType"
 #endif
 
 

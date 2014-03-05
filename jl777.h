@@ -1,3 +1,4 @@
+
 //  Created by jl777
 //  MIT License
 //
@@ -8,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 
 #ifdef __APPLE__
@@ -127,5 +129,23 @@ static char *Gateway_NXTaddrs[NUM_GATEWAYS] = { NXTACCTA, NXTACCTB, NXTACCTC };
 static char *Gateway_Pubkeys[NUM_GATEWAYS] = { PUBLICA, PUBLICB, PUBLICC };
 static char *Server_names[NUM_GATEWAYS] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC };
 static int Forged_minutes,Numtransactions,RTflag;
+
+static inline int is_gateway_related(struct gateway_AM *ap,char *sender)
+{
+    int i;
+    if ( ap->sig == GATEWAY_SIG )
+    {
+        // good place to check for valid "website" token
+        printf("sender.(%s) vs (%s)\n",sender,ap->NXTaddr);
+        if ( strcmp(sender,ap->NXTaddr) == 0 )
+            return(1);
+        for (i=0; i<NUM_GATEWAYS; i++)
+            if ( strcmp(sender,Gateway_NXTaddrs[i]) == 0 )
+                return(1);
+        if ( strcmp(sender,NXTISSUERACCT) == 0 )
+            return(1);
+    }
+    return(0);
+}
 
 #endif

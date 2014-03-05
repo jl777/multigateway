@@ -126,5 +126,6 @@ struct active_NXTacct
 static char *Gateway_NXTaddrs[NUM_GATEWAYS] = { NXTACCTA, NXTACCTB, NXTACCTC };
 static char *Gateway_Pubkeys[NUM_GATEWAYS] = { PUBLICA, PUBLICB, PUBLICC };
 static char *Server_names[NUM_GATEWAYS] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC };
+static int Forged_minutes,Numtransactions,RTflag;
 
 #endif

@@ -1,10 +1,11 @@
-
 //  Created by jl777
 //  MIT License
 //
 
 #ifndef NXTAPI_NXTparse_h
 #define NXTAPI_NXTparse_h
+typedef void *(*funcp)(char *field,char *arg,char *keyname);
+typedef char *(*blockiterator)(char *blockidstr);
 
 int Numinlist;
 char *List[10000];

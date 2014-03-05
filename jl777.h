@@ -10,7 +10,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <memory.h>
+#include <math.h>
 
+#ifndef COINCONFIG
+#define COINCONFIG "DOGE.h"
+#endif
+#include COINCONFIG
 
 #ifdef __APPLE__
 #define NXTSERVER "http://tn01.nxtsolaris.info:6876/nxt?requestType"
@@ -128,24 +134,35 @@ struct active_NXTacct
 static char *Gateway_NXTaddrs[NUM_GATEWAYS] = { NXTACCTA, NXTACCTB, NXTACCTC };
 static char *Gateway_Pubkeys[NUM_GATEWAYS] = { PUBLICA, PUBLICB, PUBLICC };
 static char *Server_names[NUM_GATEWAYS] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC };
-static int Forged_minutes,Numtransactions,RTflag;
+static char NXTACCTSECRET[128]; // stored in plain text in RAM! suggest storing encrypted and decrypt only when needed
+static int Forged_minutes,RTflag;
 
-static inline int is_gateway_related(struct gateway_AM *ap,char *sender)
+static int is_gateway_AM(int *gatewayidp,struct gateway_AM *ap,char *sender,char *receiver)
 {
     int i;
+    *gatewayidp = 0;
     if ( ap->sig == GATEWAY_SIG )
     {
         // good place to check for valid "website" token
-        printf("sender.(%s) vs (%s)\n",sender,ap->NXTaddr);
-        if ( strcmp(sender,ap->NXTaddr) == 0 )
-            return(1);
         for (i=0; i<NUM_GATEWAYS; i++)
             if ( strcmp(sender,Gateway_NXTaddrs[i]) == 0 )
+            {
+                *gatewayidp = i;
                 return(1);
-        if ( strcmp(sender,NXTISSUERACCT) == 0 )
+            }
+        if ( strcmp(sender,ap->NXTaddr) == 0 )
+        {
+            for (i=0; i<NUM_GATEWAYS; i++)
+                if ( strcmp(receiver,Gateway_NXTaddrs[i]) == 0 )
+                    *gatewayidp = i;
+            if ( strcmp(sender,NXTISSUERACCT) == 0 )
+                return(1);
             return(1);
+        }
+        printf("REJECTED AM from %s addr inside %s\n",sender,ap->NXTaddr);
     }
     return(0);
 }
+
 
 #endif

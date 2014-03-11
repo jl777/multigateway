@@ -6,9 +6,64 @@
 #ifndef NXTAPI_NXTAPI_h
 #define NXTAPI_NXTAPI_h
 
-struct active_NXTacct **NXTaccts; int Numactive,Maxactive;
-struct strings ASSETNAMES,ASSETCHANGES; 
 
+char *issue_transferAsset(char *secret,char *recipient,char *asset,int64_t quantity,int fee,int deadline,char *reftxid)
+{
+    char cmd[4096],*jsonstr;
+    sprintf(cmd,"%s=transferAsset&secretPhrase=%s&recipient=%s&asset=%s&quantity=%ld&fee=%d&deadline=%d&%s",NXTSERVER,secret,recipient,asset,(long)quantity,fee,deadline,reftxid!=0?reftxid:"");
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        printf("transferAsset.%s <-= %.2f of %s (%s)\n",recipient,(double)quantity,asset,jsonstr);
+    }
+    return(jsonstr);
+}
+
+char **issue_getAssetIds()
+{
+    int i;
+    char cmd[4096],*jsonstr,*retstr,**assetids = 0;
+    sprintf(cmd,"%s=getAssetIds",NXTSERVER);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        printf("getAssetIds.(%s)\n",jsonstr);
+        Numinlist = 0;
+        retstr = parse_NXTresults(add_clones_toList,"assetIds","assetIds",results_processor,jsonstr,strlen(jsonstr));
+        if ( retstr != 0 )
+            myfree(retstr,"27");
+        printf("getAssetIds.ret.(%s) Numinlist.%d\n",retstr,Numinlist);
+        if ( Numinlist > 0 )
+        {
+            assetids = mymalloc(sizeof(*assetids) * (Numinlist+1));
+            for (i=0; i<Numinlist; i++)
+            {
+                assetids[i] = List[i];
+                List[i] = 0;
+                printf("%s ",assetids[i]);
+            }
+            assetids[i] = 0;
+        }
+    }
+    return(assetids);
+}
+
+char *issue_getAsset(char *assetidstr)
+{
+    char cmd[4096],*jsonstr,*retstr;
+    sprintf(cmd,"%s=getAsset&asset=%s",NXTSERVER,assetidstr);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getAsset.%s %s\n",assetidstr,jsonstr);
+        retstr = parse_NXTresults(0,"","",results_processor,jsonstr,strlen(jsonstr));
+        if ( retstr != 0 )
+            myfree(retstr,"28");
+        //myfree(jsonstr,"29");
+        return(jsonstr);
+    }
+    return(0);
+}
 
 char *issue_getAccountBlockIds(char *acctid,int timestamp)
 {
@@ -18,9 +73,25 @@ char *issue_getAccountBlockIds(char *acctid,int timestamp)
     if ( jsonstr != 0 )
     {
         printf("getAccountBlockIds.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"30");
     }
     return(0);
+}
+
+char *issue_getAccount(char *acctid)
+{
+    char cmd[4096],*jsonstr=0;
+    sprintf(cmd,"%s=getAccount&account=%s",NXTSERVER,acctid);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getAccount.%s -> (%s)\n",acctid,jsonstr);
+        //retstr = parse_NXTresults(0,"","assetBalances",results_processor,jsonstr,strlen(jsonstr));
+       // if ( retstr != 0 )
+       //     myfree(retstr,"88");
+        //myfree(jsonstr,"30");
+    }
+    return(jsonstr);
 }
 
 char *issue_getAccountPublicKey(char *acctid)
@@ -31,7 +102,7 @@ char *issue_getAccountPublicKey(char *acctid)
     if ( jsonstr != 0 )
     {
         printf("getAccountPublicKey.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"31");
     }
     return(0);
 }
@@ -46,20 +117,38 @@ char *issue_getAccountTransactionIds(blockiterator arrayfunc,char *acctid,int ti
         //printf("getAccountTransactionIds.%s %s\n",acctid,jsonstr);
         if ( arrayfunc != 0 )
             retstr = parse_NXTresults(arrayfunc,"sender","transactionIds",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
+        myfree(jsonstr,"32");
     }
     return(retstr);
 }
 
+char *issue_getAccountId(char *password)
+{
+    char cmd[4096],*jsonstr,*retstr;
+    sprintf(cmd,"%s=getAccountId&secretPhrase=%s",NXTSERVER,password);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getAccountId.%s %s\n",password,jsonstr);
+        retstr = parse_NXTresults(0,"sender","",results_processor,jsonstr,strlen(jsonstr));
+        myfree(jsonstr,"33");
+        if ( retstr != 0 )
+            free(retstr);
+    }
+    return(0);
+}
+
 char *issue_getBalance(char *acctid)
 {
-    char cmd[4096],*jsonstr;
+    char cmd[4096],*jsonstr,*retstr;
     sprintf(cmd,"%s=getBalance&account=%s",NXTSERVER,acctid);
     jsonstr = issue_curl(cmd);
     if ( jsonstr != 0 )
     {
-        printf("getBalance.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        //printf("getBalance.%s %s\n",acctid,jsonstr);
+        retstr = parse_NXTresults(0,"balance","",results_processor,jsonstr,strlen(jsonstr));
+        myfree(jsonstr,"33");
+        return(retstr);
     }
     return(0);
 }
@@ -72,7 +161,7 @@ char *issue_getGuaranteedBalance(char *acctid,int numconfs)
     if ( jsonstr != 0 )
     {
         printf("getGuaranteedBalance.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"34");
     }
     return(0);
 }
@@ -85,9 +174,24 @@ char *issue_getAliasId(char *alias)
     if ( jsonstr != 0 )
     {
         printf("getAliasId.%s = %s\n",alias,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"35");
     }
     return(0);
+}
+
+
+char *issue_getTransaction(char *txidstr)
+{
+    char cmd[4096],*jsonstr,*retstr = 0;
+    sprintf(cmd,"%s=getTransaction&transaction=%s",NXTSERVER,txidstr);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getTransaction.%s %s\n",txidstr,jsonstr);
+        retstr = parse_NXTresults(0,"sender","",results_processor,jsonstr,strlen(jsonstr));
+        myfree(jsonstr,"40");
+    } else printf("error getting txid.%s\n",txidstr);
+    return(retstr);
 }
 
 char *issue_getAliasIds(char *acctid,int timestamp)
@@ -98,7 +202,7 @@ char *issue_getAliasIds(char *acctid,int timestamp)
     if ( jsonstr != 0 )
     {
         printf("getAliasIds.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"36");
     }
     return(0);
 }
@@ -111,7 +215,7 @@ char *issue_getAliasURI(char *alias)
     if ( jsonstr != 0 )
     {
         printf("getAliasURI.%s = %s\n",alias,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"37");
     }
     return(0);
 }
@@ -124,7 +228,7 @@ char *issue_listAccountAliases(char *acctid)
     if ( jsonstr != 0 )
     {
         printf("listAccountAliases.%s %s\n",acctid,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"38");
     }
     return(0);
 }
@@ -137,35 +241,9 @@ char *issue_getTransactionBytes(char *txidstr)
     if ( jsonstr != 0 )
     {
         //printf("getTransactionBytes.%s %s\n",txidstr,jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"39");
     }
     return(0);
-}
-
-char *issue_transferAsset(char *secret,char *recipient,char *asset,int64_t quantity,int fee,int deadline,char *reftxid)
-{
-    char cmd[4096],*jsonstr;
-    sprintf(cmd,"%s=transferAsset&secretPhrase=%s&recipient=%s&asset=%s&quantity=%ld&fee=%d&deadline=%d&%s",NXTSERVER,secret,recipient,asset,(long)quantity,fee,deadline,reftxid!=0?reftxid:"");
-    jsonstr = issue_curl(cmd);
-    if ( jsonstr != 0 )
-    {
-        printf("transferAsset.%s <-= %.2f of %s (%s)\n",recipient,(double)quantity,asset,jsonstr);
-    }
-    return(jsonstr);
-}
-
-char *issue_getTransaction(char *txidstr)
-{
-    char cmd[4096],*jsonstr,*retstr = 0;
-    sprintf(cmd,"%s=getTransaction&transaction=%s",NXTSERVER,txidstr);
-    jsonstr = issue_curl(cmd);
-    if ( jsonstr != 0 )
-    {
-        printf("getTransaction.%s %s\n",txidstr,jsonstr);
-        retstr = parse_NXTresults(0,"sender","",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
-    } else printf("error getting txid.%s\n",txidstr);
-    return(retstr);
 }
 
 char *issue_startForging()
@@ -176,7 +254,7 @@ char *issue_startForging()
     if ( jsonstr != 0 )
     {
         printf("\nissue_startForging.(%s)\n\n",jsonstr);
-        free(jsonstr);
+        myfree(jsonstr,"98");
     }
     return(retstr);
 }
@@ -193,9 +271,22 @@ char *issue_getState()
         if ( counter++ == 0 )
             printf("\ngetState.(%s)\n\n",jsonstr);
         retstr = parse_NXTresults(0,"lastBlock","",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
+        myfree(jsonstr,"41");
     }
     return(retstr);
+}
+
+char *issue_getMyInfo()
+{
+    char cmd[4096],*jsonstr;
+    sprintf(cmd,"%s=getMyInfo",NXTSERVER);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        printf("getMyInfo.(%s)\n\n",jsonstr);
+        myfree(jsonstr,"41");
+    }
+    return(0);
 }
 
 char *issue_getBlock(blockiterator arrayfunc,char *blockidstr)
@@ -208,7 +299,7 @@ char *issue_getBlock(blockiterator arrayfunc,char *blockidstr)
     {
         //printf("\ngetBlock.%s %s\n",blockidstr,jsonstr);
         retstr = parse_NXTresults(arrayfunc,"numberOfTransactions","transactions",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
+        myfree(jsonstr,"42");
     }
     return(retstr);
 }
@@ -228,7 +319,7 @@ char *issue_sendMessage(char *secret,char *recipient,unsigned char *message,long
     if ( jsonstr != 0 )
     {
         retstr = parse_NXTresults(0,"transaction","",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
+        myfree(jsonstr,"44");
     }
     return(retstr);
 }
@@ -258,7 +349,7 @@ int test_NXTAPI(char *acctid)
     if ( blockidstr != 0 )
     {
         issue_getBlock(issue_getTransaction,blockidstr);
-        free(blockidstr);
+        myfree(blockidstr,"45");
     }
     teststr = (unsigned char *)"this is a test message";
     deadline = 720;
@@ -266,7 +357,7 @@ int test_NXTAPI(char *acctid)
     if ( 0 && retstr != 0 )
     {
         printf("AM txid=[%s]\n",retstr);
-        free(retstr);
+        myfree(retstr,"46");
     }
     return(0);
 }
@@ -293,7 +384,7 @@ char *submit_AM(struct gateway_AM *ap)
         printf("issue_sendMessage illegal len %d\n",len);
         return(0);
     }
-    // jl777: here is where the entire message should be signed;
+    // jl777: here is where the entire message could be signed;
     memset(hexbytes,0,sizeof(hexbytes));
     len = init_hexbytes(hexbytes,(void *)ap,len);
     sprintf(cmd,"%s=sendMessage&secretPhrase=%s&recipient=%s&message=%s&deadline=%u%s&fee=1",NXTSERVER,NXTACCTSECRET,NXTISSUERACCT,hexbytes,deadline,reftxid!=0?reftxid:"");
@@ -302,7 +393,7 @@ char *submit_AM(struct gateway_AM *ap)
     {
         printf("CMD.(%s) -> %s txid.%s\n",cmd,jsonstr,retstr);
         retstr = parse_NXTresults(0,"transaction","",results_processor,jsonstr,strlen(jsonstr));
-        free(jsonstr);
+        myfree(jsonstr,"51");
     }
     return(retstr);
 }

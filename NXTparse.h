@@ -1,14 +1,16 @@
+
 //  Created by jl777
 //  MIT License
 //
 
 #ifndef NXTAPI_NXTparse_h
 #define NXTAPI_NXTparse_h
+
 typedef void *(*funcp)(char *field,char *arg,char *keyname);
 typedef char *(*blockiterator)(char *blockidstr);
 
-int Numinlist;
-char *List[10000];
+int Numinlist,Maxinlist;
+char **List;
 
 #include <memory.h>
 #include <curl/curl.h>
@@ -19,24 +21,27 @@ char *List[10000];
 #define MAX_TOKEN_LEN 4096
 struct MemoryStruct { char *memory; size_t size; };
 
-char Sender[MAX_TOKEN_LEN],Block[MAX_TOKEN_LEN],Timestamp[MAX_TOKEN_LEN],Deadline[MAX_TOKEN_LEN];
+char Sender[MAX_TOKEN_LEN],Block[MAX_TOKEN_LEN],Timestamp[MAX_TOKEN_LEN],Deadline[MAX_TOKEN_LEN],Account[MAX_TOKEN_LEN],Price[MAX_TOKEN_LEN],Balance[MAX_TOKEN_LEN],Asset[MAX_TOKEN_LEN],NumberOfUnlockedAccounts[MAX_TOKEN_LEN];
 char Quantity[MAX_TOKEN_LEN],Asset[MAX_TOKEN_LEN],Recipient[MAX_TOKEN_LEN],Amount[MAX_TOKEN_LEN],Description[MAX_TOKEN_LEN];
-char Fee[MAX_TOKEN_LEN],Confirmations[MAX_TOKEN_LEN],Signature[MAX_TOKEN_LEN],Bytes[MAX_TOKEN_LEN];
-char Transaction[MAX_TOKEN_LEN],ReferencedTransaction[MAX_TOKEN_LEN],Subtype[MAX_TOKEN_LEN],Name[MAX_TOKEN_LEN];
-char Message[MAX_TOKEN_LEN],SenderPublicKey[MAX_TOKEN_LEN],Type[MAX_TOKEN_LEN],Description[MAX_TOKEN_LEN];
+char Fee[MAX_TOKEN_LEN],Confirmations[MAX_TOKEN_LEN],Signature[MAX_TOKEN_LEN],Bytes[MAX_TOKEN_LEN],Errorcode[MAX_TOKEN_LEN];
+char Transaction[MAX_TOKEN_LEN],ReferencedTransaction[MAX_TOKEN_LEN],Subtype[MAX_TOKEN_LEN],Name[MAX_TOKEN_LEN],NextBlock[MAX_TOKEN_LEN];
+char Message[MAX_TOKEN_LEN],SenderPublicKey[MAX_TOKEN_LEN],Type[MAX_TOKEN_LEN],Description[MAX_TOKEN_LEN],PreviousBlock[MAX_TOKEN_LEN];
+char ShareAddress[MAX_TOKEN_LEN],Platform[MAX_TOKEN_LEN],Application[MAX_TOKEN_LEN],Weight[MAX_TOKEN_LEN],State[MAX_TOKEN_LEN],AnnouncedAddress[MAX_TOKEN_LEN],DownloadedVolume[MAX_TOKEN_LEN],Blacklisted[MAX_TOKEN_LEN],Version[MAX_TOKEN_LEN],UploadedVolume[MAX_TOKEN_LEN];
+
 
 void reset_strings()
 {
-    Sender[0] = Block[0] = Timestamp[0] = Deadline[0] = Quantity[0] = Asset[0] = Description[0] =
-    Recipient[0] = Amount[0] = Fee[0] = Confirmations[0] = Signature[0] = Bytes[0] = Transaction[0] = 0;
-    ReferencedTransaction[0] = Subtype[0] = Message[0] = SenderPublicKey[0] = Type[0] = Name[0] = Description[0] = 0;
+    Sender[0] = Block[0] = NumberOfUnlockedAccounts[0] = Timestamp[0] = Deadline[0] = Quantity[0] = Asset[0] = Description[0] = Account[0] = PreviousBlock[0] =
+    Recipient[0] = Amount[0] = Fee[0] = Confirmations[0] = Signature[0] = Bytes[0] = Transaction[0] = Errorcode[0] = NextBlock[0] =
+    ReferencedTransaction[0] = Message[0] = SenderPublicKey[0] = Subtype[0] = Type[0] = Name[0] = Description[0] = Price[0] = Balance[0] = Asset[0] = 0;
+    ShareAddress[0] = Platform[0] = Application[0] = Weight[0] = State[0] = AnnouncedAddress[0] = DownloadedVolume[0] = Blacklisted[0] = Version[0] = UploadedVolume[0] = 0;
 }
 
 static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
 {
     size_t realsize = size * nmemb;
     struct MemoryStruct *mem = (struct MemoryStruct *)data;
-    
+    //printf("WriteMemoryCallback\n");
     mem->memory = realloc(mem->memory, mem->size + realsize + 1);
     if (mem->memory) {
         memcpy(&(mem->memory[mem->size]), ptr, realsize);
@@ -50,13 +55,14 @@ char *issue_curl(const char *postfields,...)
 {
 	//va_list p;
 	//char *h;
+    char *retstr;
     CURL *curl_handle;
     CURLcode res;
 	//struct curl_slist *headerlist = NULL;
 
     // from http://curl.haxx.se/libcurl/c/getinmemory.html
     struct MemoryStruct chunk;
-    chunk.memory = malloc(4096);  // will be grown as needed by the realloc above
+    chunk.memory = mymalloc(1);  // will be grown as needed by the realloc above
     chunk.size = 0;    // no data at this point
     curl_global_init(CURL_GLOBAL_ALL); //init the curl session
     curl_handle = curl_easy_init();
@@ -85,15 +91,21 @@ char *issue_curl(const char *postfields,...)
         // printf("%lu bytes retrieved [%s]\n", (int64_t )chunk.size,chunk.memory);
     }
     curl_easy_cleanup(curl_handle);
-    return(chunk.memory);
+    retstr = mymalloc(strlen(chunk.memory)+1);
+    strcpy(retstr,chunk.memory);
+    free(chunk.memory);
+    return(retstr);
 }
 
 int64_t  stripstr(char *buf,int64_t  len)
 {
-    int i,j;
+    int i,j,c;
     for (i=j=0; i<len; i++)
     {
-        buf[j] = buf[i];
+        c = buf[i];
+        if ( c == '\\' )
+            c = buf[i+1], i++;
+        buf[j] = c;
         if ( buf[j] != ' ' && buf[j] != '\n' && buf[j] != '\r' && buf[j] != '\t' )
             j++;
     }
@@ -105,6 +117,27 @@ int normal_parse(double *amountp,char *buf,int j)
 {
     int i,isfloat = 0;
     char *token,str[4096];
+    *amountp = 0;
+    if ( strncmp(buf,"false",5) == 0 )
+    {
+        buf[5] = 0;
+        return(5+1);
+    }
+    else if ( strncmp(buf,"true",4) == 0 )
+    {
+        buf[4] = 0;
+        return(4+1);
+    }
+    else if ( strncmp(buf,"null",4) == 0 )
+    {
+        buf[4] = 0;
+        return(4+1);
+    }
+    else if ( strncmp(buf,"\"\",",3) == 0 || strncmp(buf,"\"\"}",3) == 0 )
+    {
+        buf[0] = 0;
+        return(2);
+    }
     if ( buf[j] >= '0' && buf[j] <= '9' )
     {
         for (i=0; i<1000; i++)
@@ -135,6 +168,8 @@ int normal_parse(double *amountp,char *buf,int j)
         return(-1);
     }
     j++;
+    if ( buf[j] == '"' )
+        j++;
     token = buf+j;
     for (i=0; i<4000; i++)
         if ( buf[j+i] == '"' )
@@ -149,6 +184,8 @@ int normal_parse(double *amountp,char *buf,int j)
     {
         buf[j+i] = 0;
         j += i + 1;
+        if ( buf[j] == '"' )
+            j++;
         *amountp = atof(token);
     }
     return(j);
@@ -167,6 +204,8 @@ char *decode_json(char **tokenp,char *buf)  // returns ptr to "value"
             return(0);
         else if ( buf[j] == '"' )
         {
+            if ( buf[j+1] == '"' )
+                j++;
             (*tokenp) = buf+j+1;
             j = normal_parse(&amount,buf,j);
             if ( j <= 0 )
@@ -179,6 +218,8 @@ char *decode_json(char **tokenp,char *buf)  // returns ptr to "value"
     }
     else if ( buf[j] == '"' )
     {
+        if ( buf[j+1] == '"' )
+            j++;
         *tokenp = buf+j+1;
         j = normal_parse(&amount,buf,j);
         if ( j <= 0 )
@@ -191,10 +232,14 @@ char *decode_json(char **tokenp,char *buf)  // returns ptr to "value"
     return(0);
 }
 
-char *addto_NXTlist(char *txid)
+char *add_clones_toList(char *str)
 {
-    if ( Numinlist < (int)(sizeof(List)/sizeof(*List)) )
-        List[Numinlist++] = clonestr(txid);
+    if ( Numinlist >= Maxinlist )
+    {
+        Maxinlist += 100;
+        List = realloc(List,Maxinlist * sizeof(*List));
+    }
+    List[Numinlist++] = clonestr(str);
     return(0);
 }
 
@@ -238,8 +283,39 @@ void *results_processor(char *field,char *arg,char *keyname)
             strcpy(Quantity,argstr);
             //printf("Quantity.(%s)\n",Quantity);
         }
+        else if ( strcmp("account",field) == 0 || strcmp("accountId",field) == 0 )
+        {
+            strcpy(Account,argstr);
+            //printf("Account.(%s)\n",Account);
+        }
         else if ( strcmp("fee",field) == 0 )
             strcpy(Fee,argstr);
+        else if ( strcmp("numberOfUnlockedAccounts",field) == 0 )
+            strcpy(NumberOfUnlockedAccounts,argstr);
+        else if ( strcmp("shareAddress",field) == 0 )
+            strcpy(ShareAddress,argstr);
+        else if ( strcmp("platform",field) == 0 )
+            strcpy(Platform,argstr);
+        else if ( strcmp("application",field) == 0 )
+            strcpy(Application,argstr);
+        else if ( strcmp("weight",field) == 0 )
+            strcpy(Weight,argstr);
+        else if ( strcmp("state",field) == 0 )
+            strcpy(State,argstr);
+        else if ( strcmp("announcedAddress",field) == 0 )
+            strcpy(AnnouncedAddress,argstr);
+        else if ( strcmp("downloadedVolume",field) == 0 )
+            strcpy(DownloadedVolume,argstr);
+        else if ( strcmp("blacklisted",field) == 0 )
+            strcpy(Blacklisted,argstr);
+        else if ( strcmp("version",field) == 0 )
+            strcpy(Version,argstr);
+        else if ( strcmp("uploadedVolume",field) == 0 )
+            strcpy(UploadedVolume,argstr);
+        else if ( strcmp("balance",field) == 0 )
+            strcpy(Balance,argstr);
+        else if ( strcmp("asset",field) == 0 )
+            strcpy(Asset,argstr);
         else if ( strcmp("confirmations",field) == 0 )
             strcpy(Confirmations,argstr);
         else if ( strcmp("block",field) == 0 )
@@ -268,10 +344,18 @@ void *results_processor(char *field,char *arg,char *keyname)
             strcpy(Bytes,argstr);
         else if ( strcmp("transaction",field) == 0 )
             strcpy(Transaction,argstr);
+        else if ( strcmp("errorCode",field) == 0 )
+            strcpy(Errorcode,argstr);
+        else if ( strcmp("previousBlock",field) == 0 )
+            strcpy(PreviousBlock,argstr);
+        else if ( strcmp("nextBlock",field) == 0 )
+            strcpy(NextBlock,argstr);
+        else if ( strcmp("price",field) == 0 )
+            strcpy(Price,argstr);
     }
     if ( field == 0 )
     {
-        //printf("successflag.%d amount.%d resultstr.%s\n",successflag,amount,resultstr);
+//printf("successflag.%d amount.%d resultstr.%s\n",successflag,amount,resultstr);
         if ( successflag > 0 )// || (successflag == 1 && amount != 0) )
             retstr = resultstr;
         resultstr = 0;
@@ -309,10 +393,11 @@ char *finalize_processor(funcp processor)
     resultstr = (*processor)(0,0,0);
     if ( resultstr != 0 )
     {
+        //printf("resultstr.(%s)\n",resultstr);
         n = (int)strlen(resultstr);
         if ( n > 0 )
         {
-            token = malloc(n+1);
+            token = mymalloc(n+1);
             memcpy(token,resultstr,n);
             token[n] = 0;
             //printf("return (%s)\n",token);
@@ -325,10 +410,12 @@ char *finalize_processor(funcp processor)
 
 char *parse_NXTresults(blockiterator iterator,char *keyname,char *arrayfield,funcp processor,char *results,long len)
 {
-    char tmpstr[10000];
+    static char *tmpstr;
     int j,n;
     double amount;
     char *token,*valuestr,*field,*fieldvalue,*blockidstr;
+    if ( tmpstr == 0 )
+        tmpstr = malloc(1000000);
     if ( results == 0 )
         return(0);
     strcpy(tmpstr,results);
@@ -347,7 +434,7 @@ char *parse_NXTresults(blockiterator iterator,char *keyname,char *arrayfield,fun
         fieldvalue = decode_json(&field,valuestr);
         if ( fieldvalue == 0 || field == 0 )
         {
-            printf("field error.%d error parsing results(%s) [%s] [%s]\n",n,results,fieldvalue,field);
+            printf("field error.%d error parsing results(%s) [%s] [%s] (%s)\n",n,results,fieldvalue,field,tmpstr);
             return(0);
         }
         if ( fieldvalue[0] == ':' )
@@ -355,7 +442,7 @@ char *parse_NXTresults(blockiterator iterator,char *keyname,char *arrayfield,fun
         if ( fieldvalue[0] == '[' )
         {
             fieldvalue++;
-            if ( strcmp(arrayfield,field) != 0 )
+            if ( arrayfield != 0 && strcmp(arrayfield,field) != 0 )
             {
                 printf("n.%d unexpected nested fieldvalue0 %s for field %s\n",n,fieldvalue,field);
                 return(0);
@@ -379,8 +466,8 @@ char *parse_NXTresults(blockiterator iterator,char *keyname,char *arrayfield,fun
                             break;
                     argstr[j] = 0;
                     blockidstr = fieldvalue + (fieldvalue[0]=='"'?1:0);
-                    (*iterator)(blockidstr);
                     //printf("(%s.%d %s)\n",field,n,blockidstr);
+                    (*iterator)(blockidstr);
                 }
                 fieldvalue += j;
                 if ( fieldvalue[0] == ',' )
@@ -438,28 +525,29 @@ char *parse_NXTresults(blockiterator iterator,char *keyname,char *arrayfield,fun
                 {
                     field = "description";
                     fieldvalue += strlen(field)+4;
-                    printf("FIELD++.(%s) -> fieldvalue.(%s)\n",field,fieldvalue);
+                    //printf("FIELD++.(%s) -> fieldvalue.(%s)\n",field,fieldvalue);
                 }
             }
             if ( (j= normal_parse(&amount,fieldvalue,0)) < 0 )
             {
-                printf("n.%d error processing field %s value %s j.%d (%s)\n",n,field,fieldvalue,j,tmpstr);
+                printf("n.%d error processing field %s value.(%s) j.%d (%s)\n",n,field,fieldvalue,j,tmpstr);
                 return(0);
             }
             if ( fieldvalue[0] == '"' )
                 token = fieldvalue+1;
             else token = fieldvalue;
-           // printf("field.(%s) token.(%s) key.(%s)\n",field,token,keyname);
-            (*processor)(field,token,keyname);
+            //printf("field.(%s) token.(%s) key.(%s) -> j.%d (%s)\n",field,token,keyname,j,fieldvalue);
             valuestr = &fieldvalue[j];
+            (*processor)(field,token,keyname);
             if ( valuestr[0] == '}' )
                 valuestr++;
-            if ( valuestr[0] != 0 )
+            if ( valuestr[0] != 0 && valuestr[0] != '"' )
                 valuestr++;
             //printf("NEW VALUESTR(%s)\n",valuestr);
         }
         n++;
     }
+    //printf("finalize\n");
     return(finalize_processor(processor));
 }
 

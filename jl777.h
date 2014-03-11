@@ -16,6 +16,10 @@
 #include <netdb.h>
 //#include "crypto_box.h"
 //#include "randombytes.h"
+#define crypto_box_PUBLICKEYBYTES 32
+#define crypto_box_SECRETKEYBYTES 32
+#define crypto_box_NONCEBYTES 24
+#define crypto_box_ZEROBYTES 32
 
 
 #define SESSION_CYCLE 10

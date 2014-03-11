@@ -8,6 +8,59 @@
 
 #include <string.h>
 
+#define NO_DEBUG
+long MY_ALLOCATED,NUM_ALLOCATED,MAX_ALLOCATED,*MY_ALLOCSIZES; void **PTRS;
+
+void *mymalloc(long allocsize)
+{
+    void *ptr;
+    MY_ALLOCATED += allocsize;
+    ptr = malloc(allocsize);
+    memset(ptr,0,allocsize);
+#ifdef NO_DEBUG
+    return(ptr);
+#endif
+    if ( NUM_ALLOCATED >= MAX_ALLOCATED )
+    {
+        MAX_ALLOCATED += 100;
+        PTRS = realloc(PTRS,MAX_ALLOCATED * sizeof(*PTRS));
+        MY_ALLOCSIZES = realloc(MY_ALLOCSIZES,MAX_ALLOCATED * sizeof(*MY_ALLOCSIZES));
+    }
+    MY_ALLOCSIZES[NUM_ALLOCATED] = allocsize;
+    printf("%ld myalloc.%p %ld | %ld\n",NUM_ALLOCATED,ptr,allocsize,MY_ALLOCATED);
+    PTRS[NUM_ALLOCATED++] = ptr;
+    return(ptr);
+}
+
+void myfree(void *ptr,char *str)
+{
+    int i;
+#ifdef NO_DEBUG
+    free(ptr);
+    return;
+#endif
+    //printf("%s: myfree.%p\n",str,ptr);
+    for (i=0; i<NUM_ALLOCATED; i++)
+    {
+        if ( PTRS[i] == ptr )
+        {
+            MY_ALLOCATED -= MY_ALLOCSIZES[i];
+            printf("%s: freeing %d of %ld | %ld\n",str,i,NUM_ALLOCATED,MY_ALLOCATED);
+            if ( i != NUM_ALLOCATED-1 )
+            {
+                MY_ALLOCSIZES[i] = MY_ALLOCSIZES[NUM_ALLOCATED-1];
+                PTRS[i] = PTRS[NUM_ALLOCATED-1];
+            }
+            NUM_ALLOCATED--;
+            free(ptr);
+            return;
+        }
+    }
+    printf("couldn't find %p in PTRS[%ld]??\n",ptr,NUM_ALLOCATED);
+    while ( 1 ) sleep(1);
+    free(ptr);
+}
+
 int copy_str(char *dest,char *src,int max)
 {
     int j,i = 0;
@@ -21,7 +74,13 @@ int copy_str(char *dest,char *src,int max)
 
 char *clonestr(char *str)
 {
-    char *clone = malloc(strlen(str)+1);
+    char *clone;
+    if ( str == 0 || str[0] == 0 )
+    {
+        printf("warning cloning nullstr.%p\n",str); while ( 1 ) sleep(1);
+        str = "<nullstr>";
+    }
+    clone = mymalloc(strlen(str)+1);
     strcpy(clone,str);
     return(clone);
 }
@@ -118,7 +177,7 @@ void purge_ptrs(char **ptrs,int n)
     for (i=0; i<n; i++)
     {
         if ( ptrs[i] != 0 )
-            free(ptrs[i]), ptrs[i] = 0;
+            myfree(ptrs[i],"99"), ptrs[i] = 0;
     }
 }
 
@@ -195,12 +254,12 @@ int find_string(struct strings *ptrs,char *str)
     return(-1);
 }
 
-int add_string(struct strings *ptrs,char *str,int arg,int64_t arg2,void *argptr,void *argptr2)
+int add_string(struct strings *ptrs,char *str,int64_t arg,int64_t arg2,void *argptr,void *argptr2)
 {
     int i;
     if ( find_string(ptrs,str) >= 0 )
         return(0);
-    //printf("add string (%s)\n",str);
+    //printf("add string.%d (%s)\n",ptrs->num,str);
     i = ptrs->num;
     if ( i >= ptrs->max )
     {

@@ -1,4 +1,3 @@
-
 //  Created by jl777
 //  MIT License
 //
@@ -68,7 +67,7 @@ int issue_getPeers(struct peer_info peers[MAX_ACTIVE_PEERS])
                                 if ( (peerid= find_string(&PEERS,addr+1)) >= 0 )
                                 {
                                     printf("%d: GOOD PEER.%d (%.0f %.0f) %s ",numpeers,peerid,(double)(downloaded-PEERS.args[peerid]),(double)(uploaded-PEERS.arg2[peerid]),addr+1);
-                                    printf("state.%s black.%s share.%s annouce.%s downloaded.%.0f uploaded.%.0f\n",State,Blacklisted,ShareAddress,AnnouncedAddress,(double)downloaded,(double)uploaded);
+                                    printf("state.%s blacklist.%s share.%s announce.%s downloaded.%.0f uploaded.%.0f\n",State,Blacklisted,ShareAddress,AnnouncedAddress,(double)downloaded,(double)uploaded);
                                     struct peer_info { int64_t uploaded,downloaded; char ipaddr[16]; };
                                     if ( numpeers < MAX_ACTIVE_PEERS )
                                     {

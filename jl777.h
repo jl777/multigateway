@@ -16,18 +16,6 @@
 #include <netdb.h>
 //#include "crypto_box.h"
 //#include "randombytes.h"
-#define crypto_box_curve25519xsalsa20poly1305_ref_PUBLICKEYBYTES 32
-#define crypto_box_curve25519xsalsa20poly1305_ref_SECRETKEYBYTES 32
-#define crypto_box_curve25519xsalsa20poly1305_ref_BEFORENMBYTES 32
-#define crypto_box_curve25519xsalsa20poly1305_ref_NONCEBYTES 24
-#define crypto_box_curve25519xsalsa20poly1305_ref_ZEROBYTES 32
-#define crypto_box_curve25519xsalsa20poly1305_ref_BOXZEROBYTES 16
-#define crypto_box_PUBLICKEYBYTES crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES
-#define crypto_box_SECRETKEYBYTES crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES
-#define crypto_box_BEFORENMBYTES crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES
-#define crypto_box_NONCEBYTES crypto_box_curve25519xsalsa20poly1305_NONCEBYTES
-#define crypto_box_ZEROBYTES crypto_box_curve25519xsalsa20poly1305_ZEROBYTES
-#define crypto_box_BOXZEROBYTES crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES
 
 
 #define SESSION_CYCLE 10

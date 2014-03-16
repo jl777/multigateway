@@ -1,3 +1,8 @@
+/*
+D. J. Bernstein
+Public domain.
+*/
+
 #ifndef crypto_box_curve25519xsalsa20poly1305_H
 #define crypto_box_curve25519xsalsa20poly1305_H
 

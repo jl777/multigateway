@@ -210,6 +210,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
             memset(&R,0,sizeof(R));
             strcpy(R.NXTaddr,NXTaddr);
             R.H.argsize = sizeof(R);
+            R.H.retsize = sizeof(*rp);
             memcpy(R.peers,peers,sizeof(peers));
             if ( (retval= server_request(destserver,&R.H,NODECOIN_VARIANT,NODECOIN_SUBMITPEERS)) == sizeof(struct server_response) )
             {

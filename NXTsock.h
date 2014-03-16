@@ -87,9 +87,11 @@ int process_client_packet(int variant,struct server_request *req,char *clientip)
 
 int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 {
+    struct server_request_header *H;
 	int total,rc,sock = *sockp;
-    //printf("wait for %d\n",len);
+    printf("wait for %d\n",len);
 	total = 0;
+    H = (struct server_request_header *)buffer;
 	while ( total < len )
 	{
 		rc = (int)recv(sock,&buffer[total],len - total, 0);
@@ -103,6 +105,11 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 			return(-1);
 		}
 		total += rc;
+        if ( total >= sizeof(struct server_request_header) && H->retsize != len )
+        {
+            printf("expected len %d -> %d\n",len,H->retsize);
+            len = H->retsize;
+        }
 	}
 	return(total);
 }
@@ -188,6 +195,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     if ( ind >= 0 && req->retsize == 0 )
         retsize = (int)Handlers[ind].retsize;
     else retsize = 0;
+    printf("retsize %d req->retsize.%d\n",retsize,req->retsize);
     if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
     {
         printf("GATEWAY_RETSIZE error\n");
@@ -312,7 +320,7 @@ void *_server_loop(void *_args)
                 req->H.retsize = process_client_packet(variant,req,ip);
                 if ( req->H.retsize > 0 )
                 {
-                    // printf("return %d\n",req->retsize);
+                    printf("return %d\n",req->H.retsize);
                     if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
                     {
                         printf("send() failed? rc.%d instead of %d\n",rc,req->H.retsize);

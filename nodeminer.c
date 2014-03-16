@@ -100,10 +100,16 @@ int process_NXTtransaction(char *nxt_txid)
 
 char *choose_poolserver(char *NXTaddr)
 {
+    static int lastind = -1;
     uint64_t hashval;
-    //hashval = calc_decimalhash(NXTaddr);
-    //return(Guardian_names[hashval % Numguardians]);
-    return(SERVER_NAMEA);
+    if ( lastind == -1 )
+    {
+        hashval = calc_decimalhash(NXTaddr);
+        lastind = (hashval % Numguardians);
+    }
+    else lastind = ((lastind+1) % Numguardians);
+    return(Guardian_names[lastind]);
+    //return(SERVER_NAMEA);
 }
 // nodeminer client
 

@@ -189,6 +189,7 @@ int issue_getPeers(struct peer_info peers[MAX_ACTIVE_PEERS])
 void nodecoin_loop(char *NXTaddr,int loopflag)
 {
     char *retstr,*destserver;
+    long retval;
     int i,peerid,numactivepeers;
     struct server_request R;
     struct server_response *rp = (struct server_response *)&R;
@@ -210,7 +211,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
             strcpy(R.NXTaddr,NXTaddr);
             R.H.argsize = sizeof(R);
             memcpy(R.peers,peers,sizeof(peers));
-            if ( server_request(destserver,&R.H,NODECOIN_VARIANT,NODECOIN_SUBMITPEERS) == sizeof(struct server_response) )
+            if ( (retval= server_request(destserver,&R.H,NODECOIN_VARIANT,NODECOIN_SUBMITPEERS)) == sizeof(struct server_response) )
             {
                 for (i=0; i<MAX_ACTIVE_PEERS; i++)
                 {
@@ -225,7 +226,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
                 }
                 printf("%ld shares, current %.8f %.8f nodecoins | sent %.8f\n",(long)rp->nodeshares,(double)rp->current_nodecoins/SATOSHIDEN,(double)rp->nodecoins/SATOSHIDEN,(double)rp->nodecoins_sent/SATOSHIDEN);
             }
-            else printf("error submitting results to (%s)\n",choose_poolserver(NXTaddr));
+            else printf("error submitting results to (%s) retval %ld vs %ld\n",choose_poolserver(NXTaddr),retval,sizeof(struct server_response));
         }
         if ( loopflag == 0 )
             break;

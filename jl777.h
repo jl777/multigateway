@@ -109,6 +109,31 @@ illegal GATEWAYID, must define GATEWAYID to 0, 1 or 2
 
 struct strings { char **list; void **argptrs,**argptrs2; int64_t *args,*arg2; int32_t num,max; };
 
+struct server_request_header { int32_t retsize,argsize,variant,funcid __attribute__ ((packed)); };
+struct server_request
+{
+	struct server_request_header H __attribute__ ((packed));
+    int32_t timestamp,arg,srcgateway,destgateway,numinputs,isforging __attribute__ ((packed));
+    char NXTaddr[MAX_NXTADDR_LEN];
+    union
+    {
+        struct
+        {
+            int64_t unspent,withdrawal,sum,ltbd __attribute__ ((packed));
+            char withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_NXTTXID_LEN];
+            unsigned char input_vouts[MAX_RAWINPUTS];
+            char input_txids[MAX_RAWINPUTS][MAX_COINTXID_LEN],rawtransaction[4096],signedtransaction[4096];
+        };
+        struct peer_info peers[MAX_ACTIVE_PEERS];
+    };
+};
+
+struct server_response
+{
+    int32_t retsize,numips,numnxtaccts,tbd3;
+    int64_t nodeshares,current_nodecoins,nodecoins,nodecoins_sent;
+};
+
 struct payment_bundle
 {
     unsigned char escrow_pubkey[crypto_box_PUBLICKEYBYTES];

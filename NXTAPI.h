@@ -78,6 +78,20 @@ char *issue_getAccountBlockIds(char *acctid,int timestamp)
     return(0);
 }
 
+char *issue_getMyInfo()
+{
+    char cmd[4096],*jsonstr=0,*retstr = 0;
+    sprintf(cmd,"%s=getMyInfo",NXTSERVER);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        printf("getMyInfo -> (%s)\n",jsonstr);
+        retstr = parse_NXTresults(0,"address","",results_processor,jsonstr,strlen(jsonstr));
+        myfree(jsonstr,"30");
+    }
+    return(retstr);
+}
+
 char *issue_getAccount(char *acctid)
 {
     char cmd[4096],*jsonstr=0;
@@ -87,8 +101,8 @@ char *issue_getAccount(char *acctid)
     {
         //printf("getAccount.%s -> (%s)\n",acctid,jsonstr);
         //retstr = parse_NXTresults(0,"","assetBalances",results_processor,jsonstr,strlen(jsonstr));
-       // if ( retstr != 0 )
-       //     myfree(retstr,"88");
+        // if ( retstr != 0 )
+        //     myfree(retstr,"88");
         //myfree(jsonstr,"30");
     }
     return(jsonstr);
@@ -124,18 +138,16 @@ char *issue_getAccountTransactionIds(blockiterator arrayfunc,char *acctid,int ti
 
 char *issue_getAccountId(char *password)
 {
-    char cmd[4096],*jsonstr,*retstr;
+    char cmd[4096],*jsonstr,*retstr = 0;
     sprintf(cmd,"%s=getAccountId&secretPhrase=%s",NXTSERVER,password);
     jsonstr = issue_curl(cmd);
     if ( jsonstr != 0 )
     {
-        //printf("getAccountId.%s %s\n",password,jsonstr);
-        retstr = parse_NXTresults(0,"sender","",results_processor,jsonstr,strlen(jsonstr));
+        printf("getAccountId.(%s) -> %s\n",password,jsonstr);
+        retstr = parse_NXTresults(0,"accountId","",results_processor,jsonstr,strlen(jsonstr));
         myfree(jsonstr,"33");
-        if ( retstr != 0 )
-            free(retstr);
     }
-    return(0);
+    return(retstr);
 }
 
 char *issue_getBalance(char *acctid)
@@ -274,19 +286,6 @@ char *issue_getState()
         myfree(jsonstr,"41");
     }
     return(retstr);
-}
-
-char *issue_getMyInfo()
-{
-    char cmd[4096],*jsonstr;
-    sprintf(cmd,"%s=getMyInfo",NXTSERVER);
-    jsonstr = issue_curl(cmd);
-    if ( jsonstr != 0 )
-    {
-        printf("getMyInfo.(%s)\n\n",jsonstr);
-        myfree(jsonstr,"41");
-    }
-    return(0);
 }
 
 char *issue_getBlock(blockiterator arrayfunc,char *blockidstr)

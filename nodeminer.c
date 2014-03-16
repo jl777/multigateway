@@ -1,5 +1,5 @@
 
-//  Created by jl777, Feb-Mar 2014
+//  Created by jl777, Feb 2014
 //  MIT License
 //
 // gcc -o nodeminer nodeminer.c -lcurl
@@ -14,12 +14,15 @@ int Deadman_switch;
 
 #include "jl777.h"
 //#include "NXTcrypto.h"
-#include "NXTsock.h"
 #include "NXTutils.h"
+#include "NXTsock.h"
 #include "NXTparse.h"
 #include "NXTAPI.h"
 #include "NXTassets.h"
-#include "nodecoin.h"
+//#include "nodecoin.h"
+#define NODECOIN_VARIANT 0
+#define NODECOIN_SUBMITPEERS 0
+struct strings PEERS;
 
 
 char *AM_get_coindeposit_address(int timestamp,int gatewayid,char *nxtaddr,char *withdrawaddr,char *userpubkey)
@@ -92,6 +95,140 @@ int process_NXTtransaction(char *nxt_txid)
         free(jsonstr);
     }
     return(timestamp);
+}
+
+char *choose_poolserver(char *NXTaddr)
+{
+    uint64_t hashval;
+    //hashval = calc_decimalhash(NXTaddr);
+    //return(Guardian_names[hashval % Numguardians]);
+    return(SERVER_NAMEA);
+}
+// nodeminer client
+
+char *issue_getPeer(char *peer)
+{
+    char cmd[4096],*jsonstr,*retstr=0;
+    sprintf(cmd,"%s=getPeer&peer=%s",NXTSERVER,peer);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getPeer.(%s) -> (%s)\n\n",peer,jsonstr);
+        retstr = parse_NXTresults(0,"announcedAddress",0,results_processor,jsonstr,strlen(jsonstr));
+        //if ( retstr != 0 )
+        //    printf("announced.(%s)\n",retstr);
+        myfree(jsonstr,"141");
+    }
+    return(retstr);
+}
+
+int issue_getPeers(struct peer_info peers[MAX_ACTIVE_PEERS])
+{
+    int j,c,peerid,numpeers = 0;
+    unsigned int downloaded,uploaded;
+    char cmd[4096],*jsonstr,*str,addr[4096],*retstr;
+    memset(peers,0,sizeof(*peers) * MAX_ACTIVE_PEERS);
+    sprintf(cmd,"%s=getPeers",NXTSERVER);
+    jsonstr = issue_curl(cmd);
+    if ( jsonstr != 0 )
+    {
+        //printf("getPeers.(%s)\n\n",jsonstr);
+        if ( (str= strstr(jsonstr,"\"peers\":[")) != 0 )
+        {
+            str += strlen("\"peers\":[");
+            j = 0;
+            addr[0] = 0;
+            while ( *str != ']' )
+            {
+                //printf("[%s]\n",str);
+                if ( (c= *str++) == ',' || c == '}' )
+                {
+                    addr[j] = 0;
+                    if ( addr[0] == '"' && addr[strlen(addr)-1] == '"' )
+                    {
+                        addr[strlen(addr)-1] = 0;
+                        //printf("(%s) ",addr+1);
+                        retstr = issue_getPeer(addr+1);
+                        //(209.126.73.162) getPeer.(209.126.73.162) -> ({"shareAddress":true,"platform":null,"application":null,"weight":0,"state":0,"announcedAddress":"209.126.73.162","downloadedVolume":0,"blacklisted":false,"version":null,"uploadedVolume":0})
+                        
+                        if ( retstr != 0 )
+                        {
+                            if ( atoi(State) == 1 && strcmp(Blacklisted,"false") == 0 && strcmp(ShareAddress,"true") == 0 && AnnouncedAddress[0] != 0 && (downloaded= atoi(DownloadedVolume)) > 0 && (uploaded= atoi(UploadedVolume)) > 0 )
+                            {
+                                if ( (peerid= find_string(&PEERS,addr+1)) < 0 )
+                                    add_string(&PEERS,addr+1,downloaded,uploaded,0,0);
+                                if ( (peerid= find_string(&PEERS,addr+1)) >= 0 )
+                                {
+                                    printf("%d: GOOD PEER.%d (%.0f %.0f) %s ",numpeers,peerid,(double)(downloaded-PEERS.args[peerid]),(double)(uploaded-PEERS.arg2[peerid]),addr+1);
+                                    printf("state.%s blacklist.%s share.%s announce.%s downloaded.%.0f uploaded.%.0f\n",State,Blacklisted,ShareAddress,AnnouncedAddress,(double)downloaded,(double)uploaded);
+                                    struct peer_info { int64_t uploaded,downloaded; char ipaddr[16]; };
+                                    if ( numpeers < MAX_ACTIVE_PEERS )
+                                    {
+                                        strncpy(peers[numpeers].ipaddr,addr+1,sizeof(peers[numpeers].ipaddr) - 1);
+                                        peers[numpeers].downloaded = (downloaded - PEERS.args[peerid]);
+                                        peers[numpeers].uploaded = (uploaded - PEERS.arg2[peerid]);
+                                        numpeers++;
+                                    }
+                                }
+                            }
+                            myfree(retstr,"113");
+                        }
+                    }
+                    addr[0] = 0;
+                    j = 0;
+                }
+                else addr[j++] = c;
+            }
+        }
+        myfree(jsonstr,"41");
+    }
+    return(numpeers);
+}
+
+void nodecoin_loop(char *NXTaddr,int loopflag)
+{
+    char *retstr;
+    int i,peerid,numactivepeers;
+    struct server_request R;
+    struct server_response *rp = (struct server_response *)&R;
+    struct peer_info peers[MAX_ACTIVE_PEERS];
+    while ( 1 )
+    {
+        if ( (retstr= issue_getState()) != 0 )
+        {
+            myfree(retstr,"122");
+            if ( atoi(NumberOfUnlockedAccounts) <= 0 )
+                issue_startForging();
+        }
+        numactivepeers = issue_getPeers(peers);
+        if ( numactivepeers > 0 )
+        {
+            printf("numactivepeers.%d\n",numactivepeers);
+            memset(&R,0,sizeof(R));
+            strcpy(R.NXTaddr,NXTaddr);
+            R.H.argsize = sizeof(R);
+            memcpy(R.peers,peers,sizeof(peers));
+            if ( server_request(choose_poolserver(NXTaddr),&R.H,NODECOIN_VARIANT,NODECOIN_SUBMITPEERS) == sizeof(struct server_response) )
+            {
+                for (i=0; i<MAX_ACTIVE_PEERS; i++)
+                {
+                    if ( peers[i].ipaddr[0] == 0 )
+                        continue;
+                    if ( (peerid= find_string(&PEERS,peers[i].ipaddr)) >= 0 ) // update xfer cutoff, this punishes unavailables
+                    {
+                        PEERS.args[peerid] += peers[i].downloaded;
+                        PEERS.arg2[peerid] += peers[i].uploaded;
+                        printf("(%s %.0f %.0f) ",peers[i].ipaddr,(double)peers[i].uploaded,(double)peers[i].downloaded);
+                    } else printf("cant find peer.(%s)?\n",peers[i].ipaddr);
+                }
+                printf("%ld shares, current %.8f %.8f nodecoins | sent %.8f\n",(long)rp->nodeshares,(double)rp->current_nodecoins/SATOSHIDEN,(double)rp->nodecoins/SATOSHIDEN,(double)rp->nodecoins_sent/SATOSHIDEN);
+            }
+            else printf("error submitting results\n");
+        }
+        if ( loopflag == 0 )
+            break;
+        sleep(10);
+    }
 }
 
 void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)

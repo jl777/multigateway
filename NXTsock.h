@@ -1,4 +1,3 @@
-
 //  Created by jl777
 //  MIT License
 //
@@ -10,29 +9,6 @@
 
 struct peer_info { int64_t uploaded,downloaded __attribute__ ((packed)); char ipaddr[INET6_ADDRSTRLEN]; } __attribute__ ((packed));
 
-struct server_request
-{
-	int32_t retsize,argsize,variant,timestamp __attribute__ ((packed));
-    int32_t total_minutes,forged_minutes,srcgateway,destgateway,numinputs,isforging __attribute__ ((packed));
-    char NXTaddr[MAX_NXTADDR_LEN];
-    union
-    {
-        struct
-        {
-            int64_t unspent,withdrawal,sum,ltbd __attribute__ ((packed));
-            char withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_NXTTXID_LEN];
-            unsigned char input_vouts[MAX_RAWINPUTS];
-            char input_txids[MAX_RAWINPUTS][MAX_COINTXID_LEN],rawtransaction[4096],signedtransaction[4096];
-        };
-        struct peer_info peers[MAX_ACTIVE_PEERS];
-    };
-};
-
-struct server_response
-{
-    int32_t retsize,tbd1,tbd2,tbd3;
-    int64_t nodeshares,current_nodecoins,nodecoins,nodecoins_sent;
-};
 struct server_request WINFO[NUM_GATEWAYS];
 
 int wait_for_serverdata(int *sockp,char *buffer,int len)

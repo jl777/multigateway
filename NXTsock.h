@@ -89,7 +89,7 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 {
     struct server_request_header *H;
 	int total,rc,sock = *sockp;
-    //printf("wait for %d\n",len);
+    printf("wait for %d\n",len);
 	total = 0;
     H = (struct server_request_header *)buffer;
 	while ( total < len )
@@ -153,7 +153,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
         if (rc == EAI_SYSTEM)
             printf("getaddrinfo() failed\n");
         sd = -1;
-        sleep(3);
+       // sleep(3);
         return(-1);
     }
     sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -161,7 +161,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     {
         printf("socket() failed\n");
         sd = -1;
-        sleep(3);
+        //sleep(3);
         return(-1);
     }
     rc = connect(sd, res->ai_addr, res->ai_addrlen);
@@ -199,12 +199,9 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
         else retsize = sizeof(struct server_response);
     }
     rc = 0;
-    //printf("retsize %d req->retsize.%d\n",retsize,req->retsize);
+    //printf("ind.%d retsize %d req->retsize.%d (variant.%d funcid.%d)\n",ind,retsize,req->retsize,variant,funcid);
     if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
-    {
-        printf("GATEWAY_RETSIZE error\n");
-        return(-1);
-    }
+        printf("GATEWAY_RETSIZE error retsize.%d rc.%d\n",retsize,rc);
     close(sd);
     sd = -1;
     return(rc);
@@ -308,7 +305,7 @@ void *_server_loop(void *_args)
 					bytesReceived += rc;
 					if ( bytesReceived >= sizeof(req->H) )
 					{
-                        if ( req->H.argsize < 65534 && expected != req->H.argsize )
+                        if ( 0 && req->H.argsize < 65534 && expected != req->H.argsize )
                             printf("expected %d -> %d\n",expected,req->H.argsize);
 						expected = req->H.argsize;
 					}
@@ -324,7 +321,7 @@ void *_server_loop(void *_args)
                 req->H.retsize = process_client_packet(variant,req,ip);
                 if ( req->H.retsize > 0 )
                 {
-                    printf("return %d\n",req->H.retsize);
+                    //printf("return %d for variant.%d funcid.%d\n",req->H.retsize,variant,req->H.funcid);
                     if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
                     {
                         printf("send() failed? rc.%d instead of %d\n",rc,req->H.retsize);

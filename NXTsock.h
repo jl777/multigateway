@@ -89,7 +89,7 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 {
     struct server_request_header *H;
 	int total,rc,sock = *sockp;
-    printf("wait for %d\n",len);
+    //printf("wait for %d\n",len);
 	total = 0;
     H = (struct server_request_header *)buffer;
 	while ( total < len )

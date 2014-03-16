@@ -1,3 +1,7 @@
+/*
+D. J. Bernstein
+Public domain.
+*/
 #ifndef crypto_box_H
 #define crypto_box_H
 

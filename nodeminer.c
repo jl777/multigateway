@@ -227,7 +227,12 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
                 }
                 printf("%ld shares, current %.8f %.8f nodecoins | sent %.8f\n",(long)rp->nodeshares,(double)rp->current_nodecoins/SATOSHIDEN,(double)rp->nodecoins/SATOSHIDEN,(double)rp->nodecoins_sent/SATOSHIDEN);
             }
-            else printf("error submitting results to (%s) retval %ld vs %ld\n",choose_poolserver(NXTaddr),retval,sizeof(struct server_response));
+            else
+            {
+                printf("error submitting results to (%s) retval %ld vs %ld -> ",choose_poolserver(NXTaddr),retval,sizeof(struct server_response));
+                destserver = choose_poolserver(NXTaddr);
+                printf("switch to (%s)\n",destserver);
+            }
         }
         if ( loopflag == 0 )
             break;
@@ -316,6 +321,7 @@ int main(int argc, const char * argv[])
         if ( gatewayid < 0 || gatewayid >= NUM_GATEWAYS )
             gatewayid = 0;
     }
+    register_variant_handler(NODECOIN_VARIANT,0,NODECOIN_SUBMITPEERS,sizeof(struct server_request),sizeof(struct server_response),0);
     gateway_client(gatewayid,NXTADDR,WITHDRAWADDR);
     printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
     return(0);

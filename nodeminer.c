@@ -20,6 +20,7 @@ int Deadman_switch;
 #include "NXTAPI.h"
 #include "NXTassets.h"
 //#include "nodecoin.h"
+#define GETBIT(bits,bitoffset) (((unsigned char *)bits)[(bitoffset) >> 3] & (1 << ((bitoffset) & 7)))
 #define NODECOIN_VARIANT 0
 #define NODECOIN_SUBMITPEERS 0
 struct strings PEERS;
@@ -255,21 +256,48 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
 
 int main(int argc, const char * argv[])
 {
+    FILE *fp;
     char *ipaddr;
-    int gatewayid = 0;
+    unsigned char bits[32];
+    int i,j,x,gatewayid = 0;
     if ( argc < 3 )
     {
-        ipaddr = issue_getMyInfo();
-        if ( ipaddr != 0 )
+        fp = fopen("randvals","rb");
+        if ( fp == 0 )
+            system("dd if=/dev/urandom count=32 bs=1 > randvals");
+        fp = fopen("randvals","rb");
+        if ( fp == 0 )
         {
-            strcpy(NXTACCTSECRET,ipaddr);
-            strcpy(NXTADDR,issue_getAccountId(ipaddr));
-            free(ipaddr);
+            ipaddr = issue_getMyInfo();
+            if ( ipaddr != 0 )
+            {
+                strcpy(NXTACCTSECRET,ipaddr);
+                strcpy(NXTADDR,issue_getAccountId(ipaddr));
+                free(ipaddr);
+            }
+            else
+            {
+                printf("usage: %s <NXT addr> <NXT acct passkey> <coin withdraw addr> [gatewayid]\n",argv[0]);
+                return(-1);
+            }
         }
         else
         {
-            printf("usage: %s <NXT addr> <NXT acct passkey> <coin withdraw addr> [gatewayid]\n",argv[0]);
-            return(-1);
+            fread(bits,1,sizeof(bits),fp);
+            for (i=0; i+6<(sizeof(bits)*8); i+=6)
+            {
+                for (j=x=0; j<6; j++)
+                {
+                    if ( GETBIT(bits,i*6+j) != 0 )
+                        x |= (1 << j);
+                }
+                //printf("i.%d j.%d x.%d %c\n",i,j,x,'0'+x);
+                NXTACCTSECRET[i/6] = '0' + x;
+            }
+            NXTACCTSECRET[i/6] = 0;
+            strcpy(NXTADDR,issue_getAccountId(NXTACCTSECRET));
+            printf("NXTADDR.%s (%s)\n",NXTADDR,NXTACCTSECRET);
+            fclose(fp);
         }
     }
     else

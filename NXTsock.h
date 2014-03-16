@@ -107,7 +107,7 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 		total += rc;
         if ( total >= sizeof(struct server_request_header) && H->retsize != len )
         {
-            printf("expected len %d -> %d\n",len,H->retsize);
+            //printf("expected len %d -> %d\n",len,H->retsize);
             len = H->retsize;
         }
 	}
@@ -192,10 +192,14 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     }
     //usleep(1);
     retsize = req->retsize;
-    if ( ind >= 0 && req->retsize == 0 )
-        retsize = (int)Handlers[ind].retsize;
-    else retsize = 0;
-    printf("retsize %d req->retsize.%d\n",retsize,req->retsize);
+    if ( req->retsize == 0 )
+    {
+        if ( ind >= 0 )
+            retsize = (int)Handlers[ind].retsize;
+        else retsize = sizeof(struct server_response);
+    }
+    rc = 0;
+    //printf("retsize %d req->retsize.%d\n",retsize,req->retsize);
     if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
     {
         printf("GATEWAY_RETSIZE error\n");

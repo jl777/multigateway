@@ -1,3 +1,4 @@
+
 //  Created by jl777
 //  MIT License
 //
@@ -14,13 +15,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-//#include "crypto_box.h"
-//#include "randombytes.h"
-#define crypto_box_PUBLICKEYBYTES 32
-#define crypto_box_SECRETKEYBYTES 32
-#define crypto_box_NONCEBYTES 24
-#define crypto_box_ZEROBYTES 32
-
+#include <sys/socket.h>
+#include "crypto_box.h"
+#include "randombytes.h"
+#include "guardians.h"
 
 #define SESSION_CYCLE 10
 
@@ -60,6 +58,8 @@
 
 #define SERVER_PORT 3005
 #define SERVER_PORTSTR "3005"
+#define INTERNAL_VARIANT(destgateway) ((destgateway)*NUM_GATEWAYS + GATEWAYID)
+#define INTERNAL_MULTISYNC 0
 #define GATEWAY_SIG 0xdadafeed
 
 #define GENESISACCT "1739068987193023818"
@@ -91,7 +91,6 @@
 #define WITHDRAW_REQUEST '<'
 #define MONEY_SENT 'm'
 
-// typedefs
 
 #define NUM_GATEWAYS 3
 #if GATEWAYID == 0
@@ -99,6 +98,7 @@
 #define SERVER_NAME SERVER_NAMEA
 #elif GATEWAYID == 1
 #define NXTACCT NXTACCTB
+#define IS_POOLSERVER
 #define SERVER_NAME SERVER_NAMEB
 #elif GATEWAYID == 2
 #define NXTACCT NXTACCTC
@@ -109,29 +109,12 @@ illegal GATEWAYID, must define GATEWAYID to 0, 1 or 2
 
 struct strings { char **list; void **argptrs,**argptrs2; int64_t *args,*arg2; int32_t num,max; };
 
-struct server_request_header { int32_t retsize,argsize,variant,funcid __attribute__ ((packed)); };
-struct server_request
+struct hashtable
 {
-	struct server_request_header H __attribute__ ((packed));
-    int32_t timestamp,arg,srcgateway,destgateway,numinputs,isforging __attribute__ ((packed));
-    char NXTaddr[MAX_NXTADDR_LEN];
-    union
-    {
-        struct
-        {
-            int64_t unspent,withdrawal,sum,ltbd __attribute__ ((packed));
-            char withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_NXTTXID_LEN];
-            unsigned char input_vouts[MAX_RAWINPUTS];
-            char input_txids[MAX_RAWINPUTS][MAX_COINTXID_LEN],rawtransaction[4096],signedtransaction[4096];
-        };
-        struct peer_info peers[MAX_ACTIVE_PEERS];
-    };
-};
-
-struct server_response
-{
-    int32_t retsize,numips,numnxtaccts,tbd3;
-    int64_t nodeshares,current_nodecoins,nodecoins,nodecoins_sent;
+    char *name;
+    void **hashtable;
+    int64_t hashsize,numsearches,numiterations,numitems;
+    long keyoffset,keysize,modifiedoffset,structsize;
 };
 
 struct payment_bundle
@@ -205,7 +188,7 @@ struct active_NXTacct
     int32_t counter,numdeposits,maxdeposits,numsweeps,numtransfers,numredemptions,numwithdraws,numassets;
     int64_t total_deposits,total_transfers,total_assets_redeemed,total_withdraws;
     int64_t pending_sweepamount,pending_transfer,pending_redeem,pending_withdraw;
-    int32_t assetnonz,asseterrors,assetmissing;
+    int32_t assetnonz,asseterrors,assetmissing,blacklist,submissions;
     int64_t *balances,nodeshares,nodecoins,current_nodecoins,nodecoins_sent;
     char NXTaddr[MAX_NXTADDR_LEN],withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_COINTXID_LEN],ipaddr[INET6_ADDRSTRLEN];
     struct gateway_state gsm[NUM_GATEWAYS];
@@ -213,9 +196,36 @@ struct active_NXTacct
 
 struct NXT_trade { int64_t price,quantity; char *buyer,*seller,*txid; int timestamp,assetid; };
 
+struct peer_info { int64_t uploaded,downloaded __attribute__ ((packed)); char ipaddr[INET6_ADDRSTRLEN]; } __attribute__ ((packed));
+
+struct server_request_header { int32_t retsize,argsize,variant,funcid __attribute__ ((packed)); };
+struct server_request
+{
+	struct server_request_header H __attribute__ ((packed));
+    int32_t timestamp,arg,srcgateway,destgateway,numinputs,isforging __attribute__ ((packed));
+    char NXTaddr[MAX_NXTADDR_LEN];
+    union
+    {
+        struct
+        {
+            int64_t unspent,withdrawal,sum,ltbd __attribute__ ((packed));
+            char withdrawaddr[MAX_COINADDR_LEN],redeem_txid[MAX_NXTTXID_LEN];
+            unsigned char input_vouts[MAX_RAWINPUTS];
+            char input_txids[MAX_RAWINPUTS][MAX_COINTXID_LEN],rawtransaction[4096],signedtransaction[4096];
+        };
+        struct peer_info peers[MAX_ACTIVE_PEERS];
+    };
+};
+
+struct server_response
+{
+    int32_t retsize,numips,numnxtaccts,tbd3;
+    int64_t nodeshares,current_nodecoins,nodecoins,nodecoins_sent;
+};
+
 static char *Gateway_NXTaddrs[NUM_GATEWAYS] = { NXTACCTA, NXTACCTB, NXTACCTC };
 static char *Gateway_Pubkeys[NUM_GATEWAYS] = { PUBLICA, PUBLICB, PUBLICC };
-static char *Server_names[NUM_GATEWAYS] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC };
+static char *Server_names[NUM_GATEWAYS+1] = { SERVER_NAMEA, SERVER_NAMEB, SERVER_NAMEC, "" };
 static char NXTACCTSECRET[128]; // stored in plain text in RAM! suggest storing encrypted and decrypt only when needed
 static int Forged_minutes,RTflag,BLOCK_ON_SERIOUS;
 

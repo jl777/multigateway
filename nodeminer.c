@@ -255,14 +255,28 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
 
 int main(int argc, const char * argv[])
 {
+    char *ipaddr;
     int gatewayid = 0;
     if ( argc < 3 )
     {
-        printf("usage: %s <NXT addr> <NXT acct passkey> <coin withdraw addr> [gatewayid]\n",argv[0]);
-        return(-1);
+        ipaddr = issue_getMyInfo();
+        if ( ipaddr != 0 )
+        {
+            strcpy(NXTACCTSECRET,ipaddr);
+            strcpy(NXTADDR,issue_getAccountId(ipaddr));
+            free(ipaddr);
+        }
+        else
+        {
+            printf("usage: %s <NXT addr> <NXT acct passkey> <coin withdraw addr> [gatewayid]\n",argv[0]);
+            return(-1);
+        }
     }
-    strcpy(NXTADDR,argv[1]);
-    strcpy(NXTACCTSECRET,argv[2]);
+    else
+    {
+        strcpy(NXTADDR,argv[1]);
+        strcpy(NXTACCTSECRET,argv[2]);
+    }
     if ( argc > 3 )
         strcpy(WITHDRAWADDR,argv[3]);
     if ( argc > 4 )

@@ -1,4 +1,3 @@
-
 //  Created by jl777, Feb 2014
 //  MIT License
 //
@@ -25,7 +24,19 @@ int Deadman_switch;
 #define NODECOIN_SUBMITPEERS 0
 struct strings PEERS;
 
-
+uint64_t calc_decimalhash(char *key)
+{
+    char c;
+    uint64_t i,a,b,hashval = 0;
+    a = 63689; b = 378551;
+    for (i=0; key[i]!=0; i++,a*=b)
+    {
+        c = key[i];
+        if ( c >= '0' && c <= '9' )
+            hashval = hashval*a + (c - '0');
+    }
+    return(hashval);
+}
 char *AM_get_coindeposit_address(int timestamp,int gatewayid,char *nxtaddr,char *withdrawaddr,char *userpubkey)
 {
     struct gateway_AM AM;

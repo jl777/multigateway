@@ -1,3 +1,4 @@
+
 //  Created by jl777
 //  MIT License
 //
@@ -6,23 +7,87 @@
 #define NXTAPI_NXTsock_h
 #include <sys/socket.h>
 
-
-struct peer_info { int64_t uploaded,downloaded __attribute__ ((packed)); char ipaddr[INET6_ADDRSTRLEN]; } __attribute__ ((packed));
-
+typedef int (*handler)();
+struct handler_info { handler variant_handler; int32_t variant,funcid; long argsize,retsize; char **whitelist; };
+static int Numhandlers;
+static struct handler_info Handlers[100];
 struct server_request WINFO[NUM_GATEWAYS];
 
-int wait_for_serverdata(int *sockp,char *buffer,int len)
+int register_variant_handler(int variant,handler variant_handler,int funcid,long argsize,long retsize,char **whitelist)
+{
+    int i;
+    if ( Numhandlers > (int)(sizeof(Handlers)/sizeof(*Handlers)) )
+    {
+        printf("Out of space: Numhandlers %d\n",Numhandlers);
+        return(-1);
+    }
+    for (i=0; i<Numhandlers; i++)
+    {
+        if ( Handlers[i].variant == variant && Handlers[i].funcid == funcid )
+        {
+            printf("Overwriting handler for variant.%d funcid.%d\n",variant,funcid);
+            Handlers[i].variant_handler = variant_handler;
+            return(i);
+        }
+    }
+    printf("Setting handler.%d for variant.%d funcid.%d\n",i,variant,funcid);
+    Handlers[i].variant_handler = variant_handler;
+    Handlers[i].funcid = funcid;
+    Handlers[i].variant = variant;
+    Handlers[i].argsize = argsize;
+    Handlers[i].retsize = retsize;
+    Handlers[i].whitelist = whitelist;
+    return(Numhandlers++);
+}
+
+int find_handler(int variant,int funcid)
+{
+    int i;
+    for (i=0; i<Numhandlers; i++)
+    {
+        if ( Handlers[i].variant == variant && Handlers[i].funcid == funcid )
+            return(i);
+    }
+    return(-1);
+}
+
+int check_whitelist(char **whitelist,char *ipaddr)
+{
+    int i;
+    if ( whitelist == 0 )
+        return(0);
+    for (i=0; whitelist[i]!=0; i++)
+        if ( strcmp(whitelist[i],ipaddr) == 0 )
+            return(i);
+    printf("%s not in whitelist\n",ipaddr);
+    return(-1);
+}
+
+int process_client_packet(int variant,struct server_request *req,char *clientip)
+{
+    int ind;
+    char **whitelist;
+    ind = find_handler(variant,req->H.funcid);
+    if ( ind >= 0 )
+    {
+        whitelist = Handlers[ind].whitelist;
+        if ( check_whitelist(whitelist,clientip) >= 0 )
+            return((*Handlers[ind].variant_handler)((void *)req,clientip));
+    }
+    else
+    {
+        whitelist = Server_names;
+        if ( check_whitelist(whitelist,clientip) >= 0 )
+            WINFO[req->srcgateway % NUM_GATEWAYS] = *req;
+    }
+    req->H.retsize = 0;
+    //printf("No handler for variant.%d funcid.%d (%s)\n",variant,req->funcid,clientip);
+    return(0);
+}
+
+int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 {
 	int total,rc,sock = *sockp;
-#ifdef __APPLE__
-	if ( 0 && setsockopt(sock, SOL_SOCKET, SO_RCVLOWAT,(char *)&len,sizeof(len)) < 0 )
-	{
-		printf("setsockopt(SO_RCVLOWAT) failed\n");
-		close(sock);
-		*sockp = -1;
-		return(-1);
-	}
-#endif
     //printf("wait for %d\n",len);
 	total = 0;
 	while ( total < len )
@@ -42,254 +107,157 @@ int wait_for_serverdata(int *sockp,char *buffer,int len)
 	return(total);
 }
 
-int issue_server_request(struct server_request *req,int srcgateway)
+int server_request(char *destserver,struct server_request_header *req,int32_t variant,int32_t funcid)
 {
-	static int sd;
-	int rc,variant,retsize;
+	int rc,retsize,ind,sd;
 	char server[128],servport[16] = SERVER_PORTSTR;
 	struct in6_addr serveraddr;
 	struct addrinfo hints, *res=NULL;
-    if ( req->destgateway < 0 || req->destgateway >= NUM_GATEWAYS | srcgateway < 0 || srcgateway >= NUM_GATEWAYS )
+    req->variant = variant;
+    req->funcid = funcid;
+    ind = find_handler(variant,funcid);
+    //if ( ind < 0 )
+    //    return(0);
+ 	sprintf(servport,"%d",SERVER_PORT + variant);
+    strcpy(server, destserver);
+    memset(&hints, 0x00, sizeof(hints));
+    hints.ai_flags    = AI_NUMERICSERV;
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    rc = inet_pton(AF_INET, server, &serveraddr);
+    if ( rc == 1 )    // valid IPv4 text address?
     {
-        printf("illegal dest gateway.%d srcgateway.%d\n",req->destgateway,srcgateway);
+        hints.ai_family = AF_INET;
+        hints.ai_flags |= AI_NUMERICHOST;
+    }
+    else
+    {
+        rc = inet_pton(AF_INET6, server, &serveraddr);
+        if ( rc == 1 ) // valid IPv6 text address?
+        {
+            hints.ai_family = AF_INET6;
+            hints.ai_flags |= AI_NUMERICHOST;
+        }
+    }
+    rc = getaddrinfo(server, servport, &hints, &res);
+    if ( rc != 0 )
+    {
+        printf("Host not found --> %s\n", gai_strerror((int)rc));
+        if (rc == EAI_SYSTEM)
+            printf("getaddrinfo() failed\n");
+        sd = -1;
+        sleep(3);
         return(-1);
     }
-    variant = req->destgateway*NUM_GATEWAYS + srcgateway;
-	sprintf(servport,"%d",SERVER_PORT + variant);
-    printf("src.%d -> dest.%d variant.%d port.%s NXT.(%s)\n",srcgateway,req->destgateway,variant,servport,req->NXTaddr);
-	//if ( sds[variant] < 0 )
-	{
-		strcpy(server, Server_names[req->destgateway]);
-		memset(&hints, 0x00, sizeof(hints));
-		hints.ai_flags    = AI_NUMERICSERV;
-		hints.ai_family   = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-		/********************************************************************/
-		/* Check if we were provided the address of the server using        */
-		/* inet_pton() to convert the text form of the address to binary    */
-		/* form. If it is numeric then we want to prevent getaddrinfo()     */
-		/* from doing any name resolution.                                  */
-		/********************************************************************/
-		rc = inet_pton(AF_INET, server, &serveraddr);
-		if ( rc == 1 )    // valid IPv4 text address? 
-		{
-			hints.ai_family = AF_INET;
-			hints.ai_flags |= AI_NUMERICHOST;
-		}
-		else
-		{
-			rc = inet_pton(AF_INET6, server, &serveraddr);
-			if ( rc == 1 ) // valid IPv6 text address? 
-			{
-				hints.ai_family = AF_INET6;
-				hints.ai_flags |= AI_NUMERICHOST;
-			}
-		}
-		/********************************************************************/
-		/* Get the address information for the server using getaddrinfo().  */
-		/********************************************************************/
-		rc = getaddrinfo(server, servport, &hints, &res);
-		if ( rc != 0 )
-		{
-			printf("Host not found --> %s\n", gai_strerror((int)rc));
-			if (rc == EAI_SYSTEM)
-				printf("getaddrinfo() failed\n");
-			sd = -1;
-			sleep(3);
-			return(-1);
-		}
-        //printf("got serverinfo %s %s\n",server,servport);
-		/********************************************************************/
-		/* The socket() function returns a socket descriptor representing   */
-		/* an endpoint.  The statement also identifies the address family,  */
-		/* socket type, and protocol using the information returned from    */
-		/* getaddrinfo().                                                   */
-		/********************************************************************/
-		sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if (sd < 0)
-		{
-			printf("socket() failed\n");
-			sd = -1;
-			sleep(3);
-			return(-1);
-		}
-        //printf("socket created\n");
-		/********************************************************************/
-		/* Use the connect() function to establish a connection to the      */
-		/* server.                                                          */
-		/********************************************************************/
-        //printf("try to connect to %s\n",Server_names[req->destgateway]);
-		rc = connect(sd, res->ai_addr, res->ai_addrlen);
-		if (rc < 0)
-		{
-			/*****************************************************************/
-			/* Note: the res is a linked list of addresses found for server. */
-			/* If the connect() fails to the first one, subsequent addresses */
-			/* (if any) in the list could be tried if desired.               */
-			/*****************************************************************/
-			perror("connect() failed");
-			printf("connection variant.%d srcgateway.%d -> destgateway.%d failure\n",variant,srcgateway,req->destgateway);
-			close(sd);
-			sd = -1;
-			sleep(3);
-			return(-1);
-		}
-		//printf("connected to variant.%d server.%d <- srcgateway.%d\n",variant,req->destgateway,srcgateway);
-		if ( res != NULL )
-			freeaddrinfo(res);
-	}
-    req->argsize = sizeof(*req);
-    printf("send %d req %d bytes from gateway.%d -> dest.%d\n",sd,req->argsize,srcgateway,req->destgateway);
-	if ( (rc = (int)send(sd,req,req->argsize,0)) < 0 )
-	{
-		printf("send(%d) request failed\n",variant);
-		close(sd);
-		sd = -1;
-		sleep(1);
-		return(-1);
-	}
-	//usleep(1);
-    if ( variant == 0 )
+    sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sd < 0)
     {
-        retsize = sizeof(struct server_response);
-        if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(char *)req,retsize)) != retsize )
-        {
-            printf("GATEWAY_RETSIZE error\n");
-            return(-1);
-        }
+        printf("socket() failed\n");
+        sd = -1;
+        sleep(3);
+        return(-1);
+    }
+    rc = connect(sd, res->ai_addr, res->ai_addrlen);
+    if ( rc < 0 )
+    {
+        perror("connect() failed");
+        printf("connection variant.%d failure\n",variant);
+        close(sd);
+        sd = -1;
+        //sleep(3);
+        return(-1);
+    }
+    //printf("connected to variant.%d server.%d <- srcgateway.%d\n",variant,req->destgateway,srcgateway);
+    if ( res != NULL )
+        freeaddrinfo(res);
+    if ( ind >= 0 && req->argsize == 0 )
+        req->argsize = (int)Handlers[ind].argsize;
+    if ( req->argsize == 0 )
+        req->argsize = sizeof(struct server_request);
+    //printf("send %d req %d bytes from variant.%d\n",sd,req->argsize,variant);
+    if ( (rc = (int)send(sd,req,req->argsize,0)) < 0 )
+    {
+        printf("send(%d) request failed\n",variant);
+        close(sd);
+        sd = -1;
+        //sleep(1);
+        return(-1);
+    }
+    //usleep(1);
+    retsize = req->retsize;
+    if ( ind >= 0 && req->retsize == 0 )
+        retsize = (int)Handlers[ind].retsize;
+    else retsize = 0;
+    if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
+    {
+        printf("GATEWAY_RETSIZE error\n");
+        return(-1);
     }
     close(sd);
     sd = -1;
-	return(rc);
+    return(rc);
 }
 
-//#ifndef __APPLE__
-int wait_for_client(char str[INET6_ADDRSTRLEN],int variant)
+int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 {
-	static int sds[200];
 	struct sockaddr_in6 serveraddr, clientaddr;
 	socklen_t addrlen = sizeof(clientaddr);
-	int i,sdconn = -1;
+	int sdconn = -1;
     str[0] = 0;
-	if ( sds[0] == 0 )
-	{
-		for (i=0; i<200; i++)
-			sds[i] = -1;
-	}
-	if ( variant < 0 )//|| (variant > 36 && variant != NUM_COMBINED) )
-		perror("wait_for_client: variant < 0 || variant > 36");
 	//get_lockid(0);
-	while ( sds[variant] < 0 )
+	while ( *sdp < 0 )
 	{
-		/********************************************************************/
-		/* The socket() function returns a socket descriptor representing   */
-		/* an endpoint.  Get a socket for address family AF_INET6 to        */
-		/* prepare to accept incoming connections on.                       */
-		/********************************************************************/
-		if ((sds[variant] = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+		if ((*sdp = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
 		{
 			perror("socket() failed");
 			break;
 		}
-		/********************************************************************/
-		/* The setsockopt() function is used to allow the local address to  */
-		/* be reused when the server is restarted before the required wait  */
-		/* time expires.                                                    */
-		/********************************************************************/
-		if ( 0 )//setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,(char *)&on,sizeof(on)) < 0)
+		/*if ( setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,(char *)&on,sizeof(on)) < 0)
 		{
 			perror("setsockopt(SO_REUSEADDR) failed");
-			close(sds[variant]);
-			sds[variant] = -1;
+			close(sd);
+			sd = -1;
 			break;
-		}
-		/********************************************************************/
-		/* After the socket descriptor is created, a bind() function gets a */
-		/* unique name for the socket.  In this example, the user sets the  */
-		/* address to in6addr_any, which (by default) allows connections to */
-		/* be established from any IPv4 or IPv6 client that specifies port  */
-		/* 3005. (i.e. the bind is done to both the IPv4 and IPv6 TCP/IP    */
-		/* stacks).  This behavior can be modified using the IPPROTO_IPV6   */
-		/* level socket option IPV6_V6ONLY if desired.                      */
-		/********************************************************************/
+		}*/
 		memset(&serveraddr, 0, sizeof(serveraddr));
 		serveraddr.sin6_family = AF_INET6;
 		serveraddr.sin6_port   = htons(SERVER_PORT+variant);
-		/********************************************************************/
-		/* Note: applications use in6addr_any similarly to the way they use */
-		/* INADDR_ANY in IPv4.  A symbolic constant IN6ADDR_ANY_INIT also   */
-		/* exists but can only be used to initialize an in6_addr structure  */
-		/* at declaration time (not during an assignment).                  */
-		/********************************************************************/
 		serveraddr.sin6_addr   = in6addr_any;
-		/********************************************************************/
-		/* Note: the remaining fields in the sockaddr_in6 are currently not */
-		/* supported and should be set to 0 to ensure upward compatibility. */
-		/********************************************************************/
-		//printf("start bind.variant.%d\n",variant);
-		if ( bind(sds[variant],(struct sockaddr *)&serveraddr,sizeof(serveraddr)) < 0 )
+		if ( bind(*sdp,(struct sockaddr *)&serveraddr,sizeof(serveraddr)) < 0 )
 		{
-			//fprintf(stderr,"%s sd.%d",jdatetime_str(actual_gmt_jdatetime()),sds[variant]);
 			printf("variant.%d\n",variant);
 			perror("variant bind() failed");
-			close(sds[variant]);
-			sds[variant] = -1;
+			close(*sdp);
+			*sdp = -1;
 			sleep(30);
 			continue;
 		}
-		//printf("finished bind.variant.%d\n",variant);
-		/********************************************************************/
-		/* The listen() function allows the server to accept incoming       */
-		/* client connections.  In this example, the backlog is set to 3  */
-		/* This means that the system will queue 3 incoming connection     */
-		/* requests before the system starts rejecting the incoming         */
-		/* requests.                                                        */
-		/********************************************************************/
-		if (listen(sds[variant], 300) < 0)
+		if ( listen(*sdp, 300) < 0 )
 		{
 			perror("listen() failed");
-			close(sds[variant]);
-			sds[variant] = -1;
+			close(*sdp);
+			*sdp = -1;
 			break;
 		}
-		//printf("Ready for client connect(). ");
 	}
 	//release_lockid(0);
 	
-	if ( sds[variant] < 0 )
+	if ( *sdp < 0 )
 		return(-1);
 	else
 	{
-		/********************************************************************/
-		/* The server uses the accept() function to accept an incoming      */
-		/* connection request.  The accept() call will block indefinitely   */
-		/* waiting for the incoming connection to arrive from an IPv4 or    */
-		/* IPv6 client.                                                     */
-		/********************************************************************/
-		if ((sdconn = accept(sds[variant], NULL, NULL)) < 0)	// non blocking would be nice
+		if ((sdconn = accept(*sdp, NULL, NULL)) < 0)	// non blocking would be nice
 		{
 			perror("accept() failed");
 			return(-1);
 		}
 		else
 		{
-			/*****************************************************************/
-			/* Display the client address.  Note that if the client is       */
-			/* an IPv4 client, the address will be shown as an IPv4 Mapped   */
-			/* IPv6 address.                                                 */
-			/*****************************************************************/
 			getpeername(sdconn, (struct sockaddr *)&clientaddr,&addrlen);
 			if ( inet_ntop(AF_INET6, &clientaddr.sin6_addr, str, INET6_ADDRSTRLEN) != 0 )
 			{
-				static unsigned long debugmsg;
-				if ( debugmsg++ < 10 )
-                {
-                    int srcgateway,destgateway;
-                    srcgateway = (variant % NUM_GATEWAYS);
-                    destgateway = (variant / NUM_GATEWAYS);
-                    printf("variant.%d src.%d -> dest.%d [Client address is %20s | Client port is %6d] sdconn.%d\n",variant,srcgateway,destgateway,str,ntohs(clientaddr.sin6_port),sdconn);
-                }
-			}
+                printf("variant.%d [Client address is %20s | Client port is %6d] sdconn.%d\n",variant,str,ntohs(clientaddr.sin6_port),sdconn);
+			} else printf("Error getting client str\n");
 		}
 	}
 	return(sdconn);
@@ -297,31 +265,27 @@ int wait_for_client(char str[INET6_ADDRSTRLEN],int variant)
 
 void *_server_loop(void *_args)
 {
-    //static long total_minutes;
-	static struct server_request *_REQ[200];
 	struct server_request *req;
-	int variant,sdconn,expected,rc,srcgateway,destgateway,bytesReceived,numreqs = 0;
+	int sd,variant,sdconn,expected,rc,bytesReceived,numreqs = 0;
 	long xferred = 0;
-    char clientip[INET6_ADDRSTRLEN];
+    char clientip[INET6_ADDRSTRLEN],*ip;
 	variant = *(int *)_args;
-	if ( (req = _REQ[variant]) == 0 )
-        _REQ[variant] = req = malloc(sizeof(*_REQ[variant]));
-    srcgateway = (variant % NUM_GATEWAYS);
-    destgateway = (variant / NUM_GATEWAYS);
-	printf("Start server_loop.%d srcgateway.%d -> destgateway.%d on port.%d\n",variant,srcgateway,destgateway,SERVER_PORT+variant);
+	req = malloc(65536);
+    sd = -1;
+	printf("Start server_loop.%d on port.%d\n",variant,SERVER_PORT+variant);
 	while ( 1 )
 	{
-		usleep(100000);
-		if ( (sdconn= wait_for_client(clientip,variant)) >= 0 )
+		usleep(10000);
+		if ( (sdconn= wait_for_client(&sd,clientip,variant)) >= 0 )
 		{
-			expected = (int)sizeof(*req);// - sizeof(req->space));
+			expected = (int)65534;//sizeof(*req);// - sizeof(req->space));
 			//printf("wait for req %d bytes from gateway.%d\n",expected,srcgateway);
 			while ( 1 )
 			{
 				bytesReceived = 0;
 				while ( bytesReceived < expected )
 				{
-					rc = (int)recv(sdconn,&((char *)req)[bytesReceived],expected - bytesReceived, 0);
+					rc = (int)recv(sdconn,&((unsigned char *)req)[bytesReceived],expected - bytesReceived, 0);
 					if ( rc <= 0 )
 					{
 						if ( rc < 0 )
@@ -330,42 +294,28 @@ void *_server_loop(void *_args)
 						break;
 					}
 					bytesReceived += rc;
-					if ( rc >= 2 )
+					if ( bytesReceived >= sizeof(req->H) )
 					{
-						//printf("expected %d -> %d\n",expected,req->argsize);
-						expected = req->argsize;
+                        if ( req->H.argsize < 65534 && expected != req->H.argsize )
+                            printf("expected %d -> %d\n",expected,req->H.argsize);
+						expected = req->H.argsize;
 					}
-                    //printf("gateway.%d got %d, total %d from gateway.%d\n",destgateway,rc,bytesReceived,srcgateway);
 				}
 				if ( bytesReceived < expected )
 				{
 					printf("The client.%d closed the connection before all of the data was sent, got %d of %d\n",variant,bytesReceived,expected);
-                   // close(sdconn);
-                   // sdconn = -1;
 					break;
 				}
-                if ( variant == 0 )
+                ip = clientip;
+                if ( strncmp(clientip,"::ffff:",strlen("::ffff:")) == 0 )
+                    ip += strlen("::ffff:");
+                req->H.retsize = process_client_packet(variant,req,ip);
+                if ( req->H.retsize > 0 )
                 {
-                    req->retsize = sizeof(struct server_response);
-                    void process_nodecoin_packet(struct server_request *req,char *clientip);
-                    process_nodecoin_packet(req,clientip);
-                }
-                else
-                {
-                    WINFO[srcgateway] = *req;
-                    req->retsize = 0;
-                }
-				//int i;
-				//for (i=0; i<bytesReceived; i++)
-				//	printf("%02x ",((unsigned char *)req)[i]);
-				//printf("| %d\n",rc);
- 				//process_server_request(variant,req,req->space);
-                if ( req->retsize > 0 )
-                {
-                    printf("return %d\n",req->retsize);
-                    if ( (rc = (int)send(sdconn,req,req->retsize,0)) < req->retsize )
+                    // printf("return %d\n",req->retsize);
+                    if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
                     {
-                        printf("send() failed? rc.%d instead of %d\n",rc,req->retsize);
+                        printf("send() failed? rc.%d instead of %d\n",rc,req->H.retsize);
                         break;
                     }
                     xferred += rc;

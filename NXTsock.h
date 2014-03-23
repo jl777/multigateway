@@ -325,11 +325,7 @@ void *_server_loop(void *_args)
                 if ( req->H.retsize > 0 )
                 {
                     //printf("return %d for variant.%d funcid.%d\n",req->H.retsize,variant,req->H.funcid);
-#ifndef _WIN32                    
-					if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
-#else
-					if ( (rc = (int)send(sdconn,(const char *)req,req->H.retsize,0)) < req->H.retsize )
-#endif					
+                    if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
                     {
                         printf("send() failed? rc.%d instead of %d\n",rc,req->H.retsize);
                         break;

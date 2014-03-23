@@ -6,7 +6,7 @@
 #ifndef gateway_jl777_h
 #define gateway_jl777_h
 
-#ifdef _WIN32 
+#ifdef _WIN32   // must be before stdio.h
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0501
 #endif

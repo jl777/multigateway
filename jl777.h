@@ -6,16 +6,27 @@
 #ifndef gateway_jl777_h
 #define gateway_jl777_h
 
+#ifdef _WIN32   // must be before stdio.h
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <memory.h>
 #include <math.h>
+
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#endif
+#include "multiplatform.h"
+
 #include "crypto_box.h"
 #include "randombytes.h"
 #include "guardians.h"

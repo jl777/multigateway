@@ -5,7 +5,10 @@
 
 #ifndef NXTAPI_NXTsock_h
 #define NXTAPI_NXTsock_h
+#ifndef _WIN32
 #include <sys/socket.h>
+#endif 
+#include "multiplatform.h"
 
 typedef int (*handler)();
 struct handler_info { handler variant_handler; int32_t variant,funcid; long argsize,retsize; char **whitelist; };
@@ -100,7 +103,7 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 			if ( rc < 0 )
 				printf("recv() failed\n");
 			//else printf("The server closed the connection\n");
-			close(sock);
+			CloseSocket(sock);
 			*sockp = -1;
 			return(-1);
 		}
@@ -169,7 +172,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     {
         perror("connect() failed");
         printf("connection variant.%d failure\n",variant);
-        close(sd);
+        CloseSocket(sd);
         sd = -1;
         //sleep(3);
         return(-1);
@@ -185,7 +188,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     if ( (rc = (int)send(sd,req,req->argsize,0)) < 0 )
     {
         printf("send(%d) request failed\n",variant);
-        close(sd);
+        CloseSocket(sd);
         sd = -1;
         //sleep(1);
         return(-1);
@@ -202,7 +205,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     //printf("ind.%d retsize %d req->retsize.%d (variant.%d funcid.%d)\n",ind,retsize,req->retsize,variant,funcid);
     if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
         printf("GATEWAY_RETSIZE error retsize.%d rc.%d\n",retsize,rc);
-    close(sd);
+    CloseSocket(sd);
     sd = -1;
     return(rc);
 }
@@ -224,7 +227,7 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 		/*if ( setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,(char *)&on,sizeof(on)) < 0)
 		{
 			perror("setsockopt(SO_REUSEADDR) failed");
-			close(sd);
+			CloseSocket(sd);
 			sd = -1;
 			break;
 		}*/
@@ -236,7 +239,7 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 		{
 			printf("variant.%d\n",variant);
 			perror("variant bind() failed");
-			close(*sdp);
+			CloseSocket(*sdp);
 			*sdp = -1;
 			sleep(30);
 			continue;
@@ -244,7 +247,7 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 		if ( listen(*sdp, 300) < 0 )
 		{
 			perror("listen() failed");
-			close(*sdp);
+			CloseSocket(*sdp);
 			*sdp = -1;
 			break;
 		}
@@ -332,7 +335,7 @@ void *_server_loop(void *_args)
 				numreqs++;
                 break;
 			}
-			close(sdconn);
+			CloseSocket(sdconn);
 			sdconn = -1;
 		}
 		//printf("Server.%d loop xferred %ld bytes, in %d REQ's ave %ld bytes\n",variant,xferred,numreqs,xferred/numreqs);

@@ -129,7 +129,13 @@ int main(int argc, const char * argv[])
         if ( gatewayid < 0 || gatewayid >= NUM_GATEWAYS )
             gatewayid = 0;
     }
+
+	OSinit();
+
     gateway_client(gatewayid,NXTADDR,WITHDRAWADDR);
-    printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
-    return(0);
+	printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
+
+	OScleanup();
+
+	return(0);
 }

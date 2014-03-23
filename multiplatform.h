@@ -11,36 +11,19 @@ int CloseSocket(int socket) {
 #endif
 } 
 
-#ifdef _WIN32
-#define send sendOS
-#define sleep sleepOS
-#define usleep usleepOS
-
-// UNIX:     ssize_t send(int sockfd, const void *buf, size_t len, int flags);
-// WINDOWS:  int send(SOCKET s, const char *buf, int len, int flags);
-// Typecasting for Windows send function
-ssize_t sendOS(int sockfd, const void *buf, size_t len, int flags) {
-    send((SOCKET) sockfd, (const char *) buf, (int) len, flags);    
+#ifndef _WIN32
+// UNIX
+int OSinit() {
+    // no action currently for non-Windows
+    return(0);
 }
 
-void sleepOS(unsigned int seconds) {
-    // VOID WINAPI Sleep(DWORD dwMilliseconds)
-    Sleep(seconds * 1000);
-} 
-
-void usleepOS(unsigned long usec) {
-    // http://stackoverflow.com/questions/5801813/c-usleep-is-obsolete-workarounds-for-windows-mingw
-    __int64 time1 = 0, time2 = 0, freq = 0;
-
-    QueryPerformanceCounter((LARGE_INTEGER *) &time1);
-    QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
-
-    do {
-        QueryPerformanceCounter((LARGE_INTEGER *) &time2);
-    } while((time2-time1) < usec);
-} 
-#endif
-
+int OScleanup() {
+    // no action currently for non-Windows
+    return(0);
+}
+#else 
+// WINDOWS
 /*
  * http://programmingrants.blogspot.com/2009/09/tips-on-undefined-reference-to.html
  * This fixes getaddrinfo not resolved error when linking.
@@ -122,19 +105,35 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
   return (WSAAddressToString((struct sockaddr *)&ss, sizeof(ss), NULL, dst, &s) == 0)?
           dst : NULL;
 }
-#endif
 
-#ifndef _WIN32
-int OSinit() {
-    // no action currently for non-Windows
-    return(0);
+#define send sendOS
+#define sleep sleepOS
+#define usleep usleepOS
+
+// UNIX:     ssize_t send(int sockfd, const void *buf, size_t len, int flags);
+// WINDOWS:  int send(SOCKET s, const char *buf, int len, int flags);
+// Typecasting for Windows send function
+ssize_t sendOS(int sockfd, const void *buf, size_t len, int flags) {
+    send((SOCKET) sockfd, (const char *) buf, (int) len, flags);    
 }
 
-int OScleanup() {
-    // no action currently for non-Windows
-    return(0);
-}
-#else
+void sleepOS(unsigned int seconds) {
+    // VOID WINAPI Sleep(DWORD dwMilliseconds)
+    Sleep(seconds * 1000);
+} 
+
+void usleepOS(unsigned long usec) {
+    // http://stackoverflow.com/questions/5801813/c-usleep-is-obsolete-workarounds-for-windows-mingw
+    __int64 time1 = 0, time2 = 0, freq = 0;
+
+    QueryPerformanceCounter((LARGE_INTEGER *) &time1);
+    QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
+
+    do {
+        QueryPerformanceCounter((LARGE_INTEGER *) &time2);
+    } while((time2-time1) < usec);
+} 
+
 /*
  * Initialize Winsock
  * http://msdn.microsoft.com/en-us/library/windows/desktop/ms737591%28v=vs.85%29.aspx

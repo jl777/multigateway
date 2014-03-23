@@ -25,8 +25,7 @@ void usleepOS(unsigned long usec) {
 #ifndef _WIN32
 	usleep(usec);
 #else
-	// 
-http://stackoverflow.com/questions/5801813/c-usleep-is-obsolete-workarounds-for-windows-mingw
+    // http://stackoverflow.com/questions/5801813/c-usleep-is-obsolete-workarounds-for-windows-mingw
     __int64 time1 = 0, time2 = 0, freq = 0;
 
     QueryPerformanceCounter((LARGE_INTEGER *) &time1);

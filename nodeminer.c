@@ -253,7 +253,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
         }
         if ( loopflag == 0 )
             break;
-        sleepOS(10);
+        sleep(10);
     }
 }
 
@@ -275,7 +275,7 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
             strcpy(lastblock,blockidstr);
             nodecoin_loop(NXTADDR,0);
         }
-        sleepOS(POLL_SECONDS);
+        sleep(POLL_SECONDS);
     }
 }
 

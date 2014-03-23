@@ -108,7 +108,7 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
             printf("NEW block.(%s) vs lastblock.(%s)\n",blockidstr,lastblock);
             strcpy(lastblock,blockidstr);
         }
-        sleepOS(POLL_SECONDS);
+        sleep(POLL_SECONDS);
     }
 }
 

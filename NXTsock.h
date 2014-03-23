@@ -7,9 +7,8 @@
 #define NXTAPI_NXTsock_h
 #ifndef _WIN32
 #include <sys/socket.h>
-#else
-#include "windowsnet.h"
 #endif 
+#include "multiplatform.h"
 
 typedef int (*handler)();
 struct handler_info { handler variant_handler; int32_t variant,funcid; long argsize,retsize; char **whitelist; };
@@ -157,7 +156,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
         if (rc == EAI_SYSTEM)
             printf("getaddrinfo() failed\n");
         sd = -1;
-       // sleepOS(3);
+       // sleep(3);
         return(-1);
     }
     sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -165,7 +164,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     {
         printf("socket() failed\n");
         sd = -1;
-        //sleepOS(3);
+        //sleep(3);
         return(-1);
     }
     rc = connect(sd, res->ai_addr, res->ai_addrlen);
@@ -175,7 +174,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
         printf("connection variant.%d failure\n",variant);
         CloseSocket(sd);
         sd = -1;
-        //sleepOS(3);
+        //sleep(3);
         return(-1);
     }
     //printf("connected to variant.%d server.%d <- srcgateway.%d\n",variant,req->destgateway,srcgateway);
@@ -186,19 +185,15 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     if ( req->argsize == 0 )
         req->argsize = sizeof(struct server_request);
     //printf("send %d req %d bytes from variant.%d\n",sd,req->argsize,variant);
-#ifndef _WIN32   	
     if ( (rc = (int)send(sd,req,req->argsize,0)) < 0 )
-#else
-    if ( (rc = (int)send(sd,(const char *)req,req->argsize,0)) < 0 )
-#endif	
     {
         printf("send(%d) request failed\n",variant);
         CloseSocket(sd);
         sd = -1;
-        //sleepOS(1);
+        //sleep(1);
         return(-1);
     }
-    //usleepOS(1);
+    //usleep(1);
     retsize = req->retsize;
     if ( req->retsize == 0 )
     {
@@ -246,7 +241,7 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 			perror("variant bind() failed");
 			CloseSocket(*sdp);
 			*sdp = -1;
-			sleepOS(30);
+			sleep(30);
 			continue;
 		}
 		if ( listen(*sdp, 300) < 0 )
@@ -292,7 +287,7 @@ void *_server_loop(void *_args)
 	printf("Start server_loop.%d on port.%d\n",variant,SERVER_PORT+variant);
 	while ( 1 )
 	{
-		usleepOS(10000);
+		usleep(10000);
 		if ( (sdconn= wait_for_client(&sd,clientip,variant)) >= 0 )
 		{
 			expected = (int)65534;//sizeof(*req);// - sizeof(req->space));

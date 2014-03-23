@@ -57,7 +57,7 @@ void myfree(void *ptr,char *str)
         }
     }
     printf("couldn't find %p in PTRS[%ld]??\n",ptr,NUM_ALLOCATED);
-    while ( 1 ) sleepOS(1);
+    while ( 1 ) sleep(1);
     free(ptr);
 }
 
@@ -77,7 +77,7 @@ char *clonestr(char *str)
     char *clone;
     if ( str == 0 || str[0] == 0 )
     {
-        printf("warning cloning nullstr.%p\n",str); while ( 1 ) sleepOS(1);
+        printf("warning cloning nullstr.%p\n",str); while ( 1 ) sleep(1);
         str = "<nullstr>";
     }
     clone = mymalloc(strlen(str)+1);
@@ -237,7 +237,7 @@ int remove_string(struct strings *ptrs,char *str)
             return(ptrs->num);
        }
     }
-    printf("remove_string unexpected missing %s\n",str);// while ( 1 ) sleepOS(1);
+    printf("remove_string unexpected missing %s\n",str);// while ( 1 ) sleep(1);
     return(ptrs->num);
 }*/
 

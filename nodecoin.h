@@ -105,7 +105,7 @@ int update_ipaddr(char *ipaddr)
     if ( ind < 0 )
     {
         printf("FATAL ERROR: failed adding IPADDRS.(%s)\n",ipaddr);
-        while ( 1 ) sleepOS(1);
+        while ( 1 ) sleep(1);
     }
     return(ind);
 }
@@ -266,7 +266,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
         }
         if ( loopflag == 0 )
             break;
-        sleepOS(10);
+        sleep(10);
     }
 }
 

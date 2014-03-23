@@ -219,7 +219,7 @@ struct active_NXTacct *get_active_NXTacct(char *nxtaddr)
         if ( (active= search_NXTaccts(nxtaddr)) == 0 )
         {
             printf("FATAL ERROR: couldnt add NXTaddr!\n");
-            while ( 1 ) sleepOS(1);
+            while ( 1 ) sleep(1);
         }
         return(active);
     }
@@ -364,7 +364,7 @@ void set_asset_name(char *name,char *assetidstr)
     {
         printf("SERIOUS ERROR: set_asset_name couldnt find (%s)\n",assetidstr);
         if ( BLOCK_ON_SERIOUS != 0 )
-            while ( 1 ) sleepOS(1);
+            while ( 1 ) sleep(1);
     }
     if ( ASSETIDS.args[assetid] >= 0 && ASSETIDS.args[assetid] < ASSETIDS.num )
         strcpy(name,ASSETNAMES.list[ASSETIDS.args[assetid]]);
@@ -372,7 +372,7 @@ void set_asset_name(char *name,char *assetidstr)
     {
         printf("SERIOUS ERROR: set_asset_name assetid.%d (%s) has no argptr\n",assetid,assetidstr);
         if ( BLOCK_ON_SERIOUS != 0 )
-            while ( 1 ) sleepOS(1);
+            while ( 1 ) sleep(1);
     }
 }
 
@@ -389,7 +389,7 @@ int update_assetname(char *assetname)
     if ( nameid < 0 )
     {
         printf("FATAL ERROR: failed adding assetname.(%s)\n",assetname);
-        while ( 1 ) sleepOS(1);
+        while ( 1 ) sleep(1);
     }
     return(nameid);
 }
@@ -420,7 +420,7 @@ void update_asset_balances(char *assetname,char *change_txid,char *assetidstr,ch
             {
                 printf("ILLEGAL transfer %s assetid.%d to %s | %s.(%.8f) < xfer.%8f????\n",ASSETIDS.list[assetid],assetid,recipientstr,senderstr,(double)sender->balances[assetid]/SATOSHIDEN,(double)satoshis/SATOSHIDEN);
                 //if ( BLOCK_ON_SERIOUS != 0 )
-                //    while ( 1 ) sleepOS(1);
+                //    while ( 1 ) sleep(1);
             }
             //else
             {
@@ -434,7 +434,7 @@ void update_asset_balances(char *assetname,char *change_txid,char *assetidstr,ch
     {
         printf("SERIOUS ERROR, cant find (%s)\n",assetidstr);
         if ( BLOCK_ON_SERIOUS != 0 )
-            while ( 1 ) sleepOS(1);
+            while ( 1 ) sleep(1);
     }
 }
 
@@ -488,7 +488,7 @@ int update_assetid(char *assetidstr)
         else
         {
             printf("UNEXPECTED asset mismatch assetid.%d quantity %.8f Name.%s Account.%s\n",assetid,(double)quantity/SATOSHIDEN,Name,Account);
-            if ( BLOCK_ON_SERIOUS != 0 ) while ( 1 ) sleepOS(1);
+            if ( BLOCK_ON_SERIOUS != 0 ) while ( 1 ) sleep(1);
         }
         if ( flag == 0 )
             myfree(descr,"60"),myfree(issuer,"61");

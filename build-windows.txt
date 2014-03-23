@@ -1,0 +1,180 @@
+=======================================
+Nodecoin build instructions for Windows
+=======================================
+Instructions for building under MinGW (Minimalist GNU for Windows).
+The code should also build with some minor changes under other environments 
+such as Visual C++.
+
+Windows network coding tips are here:
+http://msdn.microsoft.com/en-us/library/windows/desktop/ms737591%28v=vs.85%29.aspx
+
+=============
+Install MinGW
+=============
+http://www.mingw.org/
+
+MinGW, a contraction of "Minimalist GNU for Windows", is a minimalist 
+development environment for native Microsoft Windows applications.
+
+MinGW provides a complete Open Source programming tool set which is 
+suitable for the development of native MS-Windows applications, and 
+which do not depend on any 3rd-party C-Runtime DLLs. 
+
+MinGW includes:
+
+    A port of the GNU Compiler Collection (GCC), including C, C++, ...
+    GNU Binutils for Windows (assembler, linker, archive manager)
+    A command-line installer (mingw-get) for MinGW and MSYS deployment on MS-Windows
+    A GUI wrapper (mingw-get-inst) for the command line installer
+
+MSYS, a contraction of "Minimal SYStem", is a Bourne Shell command line interpreter system. 
+
+==============
+Download MinGW 
+==============
+http://www.mingw.org/wiki/Getting_Started
+
+Thus, we strongly recommend that you do not install MinGW in any location
+with spaces in the path name reference. You should avoid installing into
+any directory or subdirectory having names like "Program Files" or
+"My Documents", etc.
+
+An automated GUI installer assistant called mingw-get-setup.exe is the 
+preferred method for first time installation. 
+
+* Download mingw-get-setup.exe
+
+https://sourceforge.net/projects/mingw/files/latest/download
+
+* Run mingw-get-setup.exe
+
+Choose installation dir: C:\MinGW
+
+In MinGW Installation Manager, click the following checkboxes and select 
+"Mark for Installation" for each one.
+
+[X] mingw32-developer-tools
+[X] mingw32-base
+[X] mingw32-gcc-g++
+[X] msys-base
+
+Go to the menu bar and select "Installation" > "Apply changes" then click "Apply"
+
+Close the MinGW Installation Manager window.
+
+=======================
+MinGW Post Installation 
+=======================
+Regardless of how you installed MinGW and/or MSYS, if yo did choose to install 
+MSYS, you should check its configuration. You need to ensure that MSYS knows 
+where MinGW is located, so:
+
+    Open a Windows Explorer window and locate your installation directory 
+    (i.e. C:\MinGW, or any alternative you nominated during installation).
+    Below your installation directory, you should find a directory named 
+    "msys", (normally in lower case letters, but mixed case, or all upper 
+    case is okay too); open this then find and open the additional 
+    subdirectories, "1.0" and "etc".
+    
+    Within the "etc" directory, there should be a file named "fstab"; 
+    (if not, create one, as a new text file). Open this with a text editor; 
+    (you should be able to do this by right clicking on it, and in the popup 
+    menu select "Open" or "Open With", although you may find that you need 
+    to select a suitable editor application to do so).
+    Edit the file and ensure that it contains one line, (there may be others), 
+    which reads:
+
+    C:\MinGW   /mingw
+
+    (substituting the FULL ABSOLUTE path of any alternative to C:\MinGW, 
+    which you nominated during installation); ensure that you follow this 
+    path name entry with at least one space, or tab, before typing the 
+    "/mingw" entry.
+    
+The preferred installation target directory is C:\MinGW
+
+Before you save the file, ensure that there is at least one blank line at 
+the bottom, below all of the entries that may exist, then save and close 
+the file.
+
+========================== 
+Run the postinstall script
+==========================
+From the windows explorer, navigate to msys\1.0\postinstall
+Run the postinstall script.
+
+	pi.bat
+
+Run msys.bat to get a bash-like prompt.
+
+===========================
+MinGW disk error workaround
+===========================
+Launch the msys shell and run the df command at the prompt.
+
+	$ df
+	
+If you get an error/warning listing missing drives like /d, /e, then you 
+may want to look into the following. 
+
+If you run gcc and other programs, annoying warnings will pop up and you'll 
+want to fix it:
+
+http://support.microsoft.com/kb/330137
+- Disabled my card reader at drive E:
+- Inserted a dvd at drive D:
+- Quit out of mysys, and relaunched msys window
+- "df" command works without an error
+
+============
+Install CURL 
+============
+http://mingw.5.n7.nabble.com/Easiest-way-for-users-to-install-Curl-for-MinGW-td31434.html
+
+From your Windows browser, download curl-7.35.0.tar.gz from 
+
+	http://curl.haxx.se/download.html
+
+Save the download curl-7.35.0.tar.gz to inside your MinGW home directory, 
+such as:
+
+	C:\MinGW\msys\1.0\home\YourUserName
+
+Now when you run msys, you should see the download when you type ls.
+
+	$ ls -l 
+	curl-7.35.0.tar.gz
+	
+Unpack the archive and build
+
+	$ tar -zxvf curl-7.35.0.tar.gz
+	$ cd curl-7.35.0
+	$ ./configure --prefix=/mingw
+	$ make
+	$ make install
+
+Library files are installed to C:\MinGW\lib which is mapped to /mingw/lib 
+in the msys shell.
+
+===================================
+Building nodeminer and get_dogeaddr 
+===================================
+### Build windows executables on a MinGW platform.
+### Requires curl library to have been built already.
+### Executables may require libcurl-4.dll to be in directory.
+### See build-windows.txt for instructions.
+
+rm -fv get_dogeaddr.o get_dogeaddr.exe nodeminer.o nodeminer.exe
+
+gcc -static-libgcc -c get_dogeaddr.c
+gcc -static-libgcc get_dogeaddr.o -o get_dogeaddr.exe -lwsock32 -lws2_32 -lcurl
+
+gcc -static-libgcc -c nodeminer.c
+gcc -static-libgcc nodeminer.o -o nodeminer.exe -lwsock32 -lws2_32 -lcurl
+
+======================================
+Note: on linking to libraries and dlls 
+======================================
+If applications use CURL and link dynamically to curl, then a curl dll will 
+need to included with the built application, for example executables may 
+require libcurl-4.dll to be in the directory.

@@ -5,7 +5,11 @@
 
 #ifndef NXTAPI_NXTsock_h
 #define NXTAPI_NXTsock_h
+#ifndef _WIN32
 #include <sys/socket.h>
+#else
+#include "windowsnet.h"
+#endif 
 
 typedef int (*handler)();
 struct handler_info { handler variant_handler; int32_t variant,funcid; long argsize,retsize; char **whitelist; };
@@ -100,7 +104,7 @@ int wait_for_serverdata(int *sockp,unsigned char *buffer,int len)
 			if ( rc < 0 )
 				printf("recv() failed\n");
 			//else printf("The server closed the connection\n");
-			close(sock);
+			CloseSocket(sock);
 			*sockp = -1;
 			return(-1);
 		}
@@ -153,7 +157,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
         if (rc == EAI_SYSTEM)
             printf("getaddrinfo() failed\n");
         sd = -1;
-       // sleep(3);
+       // sleepOS(3);
         return(-1);
     }
     sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -161,7 +165,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     {
         printf("socket() failed\n");
         sd = -1;
-        //sleep(3);
+        //sleepOS(3);
         return(-1);
     }
     rc = connect(sd, res->ai_addr, res->ai_addrlen);
@@ -169,9 +173,9 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     {
         perror("connect() failed");
         printf("connection variant.%d failure\n",variant);
-        close(sd);
+        CloseSocket(sd);
         sd = -1;
-        //sleep(3);
+        //sleepOS(3);
         return(-1);
     }
     //printf("connected to variant.%d server.%d <- srcgateway.%d\n",variant,req->destgateway,srcgateway);
@@ -182,15 +186,19 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     if ( req->argsize == 0 )
         req->argsize = sizeof(struct server_request);
     //printf("send %d req %d bytes from variant.%d\n",sd,req->argsize,variant);
+#ifndef _WIN32   	
     if ( (rc = (int)send(sd,req,req->argsize,0)) < 0 )
+#else
+    if ( (rc = (int)send(sd,(const char *)req,req->argsize,0)) < 0 )
+#endif	
     {
         printf("send(%d) request failed\n",variant);
-        close(sd);
+        CloseSocket(sd);
         sd = -1;
-        //sleep(1);
+        //sleepOS(1);
         return(-1);
     }
-    //usleep(1);
+    //usleepOS(1);
     retsize = req->retsize;
     if ( req->retsize == 0 )
     {
@@ -202,7 +210,7 @@ int server_request(char *destserver,struct server_request_header *req,int32_t va
     //printf("ind.%d retsize %d req->retsize.%d (variant.%d funcid.%d)\n",ind,retsize,req->retsize,variant,funcid);
     if ( retsize > 0 && (rc= wait_for_serverdata(&sd,(unsigned char *)req,retsize)) != retsize )
         printf("GATEWAY_RETSIZE error retsize.%d rc.%d\n",retsize,rc);
-    close(sd);
+    CloseSocket(sd);
     sd = -1;
     return(rc);
 }
@@ -224,7 +232,7 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 		/*if ( setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,(char *)&on,sizeof(on)) < 0)
 		{
 			perror("setsockopt(SO_REUSEADDR) failed");
-			close(sd);
+			CloseSocket(sd);
 			sd = -1;
 			break;
 		}*/
@@ -236,15 +244,15 @@ int wait_for_client(int *sdp,char str[INET6_ADDRSTRLEN],int variant)
 		{
 			printf("variant.%d\n",variant);
 			perror("variant bind() failed");
-			close(*sdp);
+			CloseSocket(*sdp);
 			*sdp = -1;
-			sleep(30);
+			sleepOS(30);
 			continue;
 		}
 		if ( listen(*sdp, 300) < 0 )
 		{
 			perror("listen() failed");
-			close(*sdp);
+			CloseSocket(*sdp);
 			*sdp = -1;
 			break;
 		}
@@ -284,7 +292,7 @@ void *_server_loop(void *_args)
 	printf("Start server_loop.%d on port.%d\n",variant,SERVER_PORT+variant);
 	while ( 1 )
 	{
-		usleep(10000);
+		usleepOS(10000);
 		if ( (sdconn= wait_for_client(&sd,clientip,variant)) >= 0 )
 		{
 			expected = (int)65534;//sizeof(*req);// - sizeof(req->space));
@@ -322,7 +330,11 @@ void *_server_loop(void *_args)
                 if ( req->H.retsize > 0 )
                 {
                     //printf("return %d for variant.%d funcid.%d\n",req->H.retsize,variant,req->H.funcid);
-                    if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
+#ifndef _WIN32                    
+					if ( (rc = (int)send(sdconn,req,req->H.retsize,0)) < req->H.retsize )
+#else
+					if ( (rc = (int)send(sdconn,(const char *)req,req->H.retsize,0)) < req->H.retsize )
+#endif					
                     {
                         printf("send() failed? rc.%d instead of %d\n",rc,req->H.retsize);
                         break;
@@ -332,7 +344,7 @@ void *_server_loop(void *_args)
 				numreqs++;
                 break;
 			}
-			close(sdconn);
+			CloseSocket(sdconn);
 			sdconn = -1;
 		}
 		//printf("Server.%d loop xferred %ld bytes, in %d REQ's ave %ld bytes\n",variant,xferred,numreqs,xferred/numreqs);

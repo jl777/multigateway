@@ -108,7 +108,7 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
             printf("NEW block.(%s) vs lastblock.(%s)\n",blockidstr,lastblock);
             strcpy(lastblock,blockidstr);
         }
-        sleep(POLL_SECONDS);
+        sleepOS(POLL_SECONDS);
     }
 }
 
@@ -129,7 +129,17 @@ int main(int argc, const char * argv[])
         if ( gatewayid < 0 || gatewayid >= NUM_GATEWAYS )
             gatewayid = 0;
     }
+
+#ifdef _WIN32
+	winsock_startup();
+#endif 
+
     gateway_client(gatewayid,NXTADDR,WITHDRAWADDR);
-    printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
-    return(0);
+	printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
+
+#ifdef _WIN32
+	winsock_cleanup();
+#endif 
+
+	return(0);
 }

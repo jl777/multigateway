@@ -6,16 +6,34 @@
 #ifndef gateway_jl777_h
 #define gateway_jl777_h
 
+/////////////////////////////////////////////////////////////////////////////////////
+// http://programmingrants.blogspot.com/2009/09/tips-on-undefined-reference-to.html
+// Fixes getaddrinfo not resolved error when linking.
+// Needs to be before stdio.h when built under MinGW.
+/////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32 
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <memory.h>
 #include <math.h>
+
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#else
+#include "windowsnet.h"
+#endif
+#include "multiplatform.h"
+
 #include "crypto_box.h"
 #include "randombytes.h"
 #include "guardians.h"

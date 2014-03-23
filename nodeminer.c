@@ -253,7 +253,7 @@ void nodecoin_loop(char *NXTaddr,int loopflag)
         }
         if ( loopflag == 0 )
             break;
-        sleep(10);
+        sleepOS(10);
     }
 }
 
@@ -275,7 +275,7 @@ void gateway_client(int gatewayid,char *nxtaddr,char *withdrawaddr)
             strcpy(lastblock,blockidstr);
             nodecoin_loop(NXTADDR,0);
         }
-        sleep(POLL_SECONDS);
+        sleepOS(POLL_SECONDS);
     }
 }
 
@@ -287,6 +287,11 @@ int main(int argc, const char * argv[])
     int i,j,x,gatewayid = 0;
     if ( argc < 3 )
     {
+#ifdef _WIN32
+	// syntax not currently supported on Windows (no /dev/urandom)
+	printf("usage: %s <NXT addr> <NXT acct passkey>\n",argv[0]);
+	return(-1);		
+#endif 
         fp = fopen("randvals","rb");
         if ( fp == 0 )
             system("dd if=/dev/urandom count=32 bs=1 > randvals");
@@ -338,8 +343,18 @@ int main(int argc, const char * argv[])
         if ( gatewayid < 0 || gatewayid >= NUM_GATEWAYS )
             gatewayid = 0;
     }
+
+#ifdef _WIN32
+	winsock_startup();
+#endif 
+
     register_variant_handler(NODECOIN_VARIANT,0,NODECOIN_SUBMITPEERS,sizeof(struct server_request),sizeof(struct server_response),0);
     gateway_client(gatewayid,NXTADDR,WITHDRAWADDR);
     printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
-    return(0);
+
+#ifdef _WIN32
+	winsock_cleanup();
+#endif 
+
+	return(0);
 }

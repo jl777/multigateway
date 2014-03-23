@@ -344,17 +344,13 @@ int main(int argc, const char * argv[])
             gatewayid = 0;
     }
 
-#ifdef _WIN32
-	winsock_startup();
-#endif 
+	OSinit();
 
     register_variant_handler(NODECOIN_VARIANT,0,NODECOIN_SUBMITPEERS,sizeof(struct server_request),sizeof(struct server_response),0);
     gateway_client(gatewayid,NXTADDR,WITHDRAWADDR);
     printf("\n\n>>>>> gateway.%d deposit address for %s is %s and withdraw address is %s\n",gatewayid,NXTADDR,DEPOSITADDR,WITHDRAWADDR);
 
-#ifdef _WIN32
-	winsock_cleanup();
-#endif 
+	OScleanup();
 
 	return(0);
 }

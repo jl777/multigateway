@@ -1,5 +1,4 @@
 
-
 #ifndef gateway_guardians_h
 #define gateway_guardians_h
 
